@@ -104,16 +104,16 @@ Pencil and paper is encouraged! Drawing a diagram/graph of the message pathways 
      
  - Topology:
    - What kind of network topology do you want to implement? Peer to peer? Master slave? Circle? Something else?
-   - In the case of a master-slave configuration: Do you have only one program, or two (a "master" executable and a "slave")?
-     - How do you handle a master node disconnecting?
-     - Is a slave becoming a master a part of the network module?
+   - In the case of a master-slave configuration: Do you have only one program, or two (a "master" executable and a "slave")? -> Only one
+     - How do you handle a master node disconnecting? -> Master change
+     - Is a slave becoming a master a part of the network module? -> Probably
    - In the case of a peer-to-peer configuration:
      - Who decides the order assignment?
      - What happens if someone presses the same button on two panels at once? Is this even a problem?
      
  - Technical implementation and module boundary:
-   - Protocols: TCP, UDP, or something else?
-      - If you are using TCP: How do you know who connects to who?
+   - Protocols: TCP, UDP, or something else? -> 
+      - If you are using TCP: How do you know who connects to who? -> What?
         - Do you need an initialization phase to set up all the connections?
       - If you are using UDP broadcast: How do you differentiate between messages from different nodes?
       - If you are using a library or language feature to do the heavy lifting - what is it, and does it satisfy your needs?
