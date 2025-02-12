@@ -66,19 +66,24 @@ func handleArrivedAtFloor(elevator *Elevator, ch StateMachineChannels, doorTimed
 }
 
 // handleDoorTimeout processes the event when the door timer expires
-func handleDoorTimeout(elevator *Elevator, ch StateMachineChannels, engineErrorTimer *time.Timer) {
+func handleDoorTimeout(elevator *Elevator, ch StateMachineChannels, engineErrorTimer *time.Timer, doorTimedOut *time.Timer) {
 	// Close the door and determine the next direction based on the queue
-	elevio.SetDoorOpenLamp(false)
-	elevator.Dir = chooseDirection(*elevator)
-	if elevator.Dir == elevio.MD_Stop {
-		// If no movement is needed, set the state to idle and stop the engine error timer
-		elevator.State = Idle
-		engineErrorTimer.Stop()
+	if elevator.Obstructed {
+		doorTimedOut.Reset(3 * time.Second)
 	} else {
-		// Start moving towards the next ordered floor
-		elevator.State = Moving
-		engineErrorTimer.Reset(3 * time.Second)
-		elevio.SetMotorDirection(elevator.Dir)
+		elevio.SetDoorOpenLamp(false)
+		elevator.Dir = chooseDirection(*elevator)
+		if elevator.Dir == elevio.MD_Stop {
+			// If no movement is needed, set the state to idle and stop the engine error timer
+			elevator.State = Idle
+			engineErrorTimer.Stop()
+		} else {
+			// Start moving towards the next ordered floor
+			elevator.State = Moving
+			engineErrorTimer.Reset(3 * time.Second)
+			elevio.SetMotorDirection(elevator.Dir)
+		}
+
 	}
 	// Update the main controller with the new elevator state
 	ch.Elevator <- *elevator

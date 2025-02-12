@@ -66,7 +66,7 @@ func RunElevator(ch StateMachineChannels, numFloors int) {
 			handleArrivedAtFloor(&elevator, ch, doorTimedOut, engineErrorTimer, &orderCleared)
 
 		case <-doorTimedOut.C:
-			handleDoorTimeout(&elevator, ch, engineErrorTimer)
+			handleDoorTimeout(&elevator, ch, engineErrorTimer, doorTimedOut)
 
 		case <-engineErrorTimer.C:
 			handleEngineError(&elevator, ch)
