@@ -17,6 +17,7 @@ func main() {
 		StateError:     make(chan error),
 		NewOrder:       make(chan elevio.ButtonEvent),
 		ArrivedAtFloor: make(chan int),
+		Obstruction:    make(chan bool),
 	}
 
 	// Start the elevator state machine
