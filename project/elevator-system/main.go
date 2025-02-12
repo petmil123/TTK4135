@@ -46,7 +46,7 @@ func main() {
 
 		case obstruction := <-drv_obstr:
 			fmt.Printf("Obstruction: %+v\n", obstruction)
-			// Handle obstruction if needed
+			ch.Obstruction <- obstruction
 
 		case stop := <-drv_stop:
 			fmt.Printf("Stop button: %+v\n", stop)

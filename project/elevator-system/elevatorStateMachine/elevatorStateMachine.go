@@ -13,14 +13,16 @@ type StateMachineChannels struct {
 	StateError     chan error              // Reports errors in elevator operation
 	NewOrder       chan elevio.ButtonEvent // Receives new button press events
 	ArrivedAtFloor chan int                // Signals when elevator arrives at a floor
+	Obstruction    chan bool               // Signals when obstruction switch is activated
 }
 
 // Elevator represents the elevator state and properties
 type Elevator struct {
-	State State                 // Current state (Idle, Moving, etc)
-	Dir   elevio.MotorDirection // Current direction of movement
-	Floor int                   // Current floor position
-	Queue [][]bool              // Order queue matrix [floors][button_types]
+	State      State                 // Current state (Idle, Moving, etc)
+	Dir        elevio.MotorDirection // Current direction of movement
+	Floor      int                   // Current floor position
+	Queue      [][]bool              // Order queue matrix [floors][button_types]
+	Obstructed bool                  // True if obstruction switch is activated
 }
 
 // State represents the different states the elevator can be in
@@ -68,6 +70,9 @@ func RunElevator(ch StateMachineChannels, numFloors int) {
 
 		case <-engineErrorTimer.C:
 			handleEngineError(&elevator, ch)
+
+		case obstruction := <-ch.Obstruction:
+			handleObstruction(&elevator, obstruction, doorTimedOut)
 		}
 	}
 }

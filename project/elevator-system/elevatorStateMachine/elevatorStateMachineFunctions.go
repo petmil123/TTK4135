@@ -102,6 +102,18 @@ func handleEngineError(elevator *Elevator, ch StateMachineChannels) {
 	ch.Elevator <- *elevator
 }
 
+// handleObstruction processes the event when the obstruction switch is triggered or un-triggered
+func handleObstruction(elevator *Elevator, obstruction bool, doorTimedOut *time.Timer) {
+	elevator.Obstructed = obstruction
+	if obstruction {
+		// If the door is obstructed, reset the door timer to keep the door open
+		doorTimedOut.Reset(3 * time.Second)
+	} else if elevator.State == DoorOpen {
+		// If the obstruction is cleared and the door is open, allow the door to close after the timer expires
+		doorTimedOut.Reset(3 * time.Second)
+	}
+}
+
 // chooseDirection determines the next direction of the elevator based on the queue
 func chooseDirection(elevator Elevator) elevio.MotorDirection {
 	switch elevator.Dir {
