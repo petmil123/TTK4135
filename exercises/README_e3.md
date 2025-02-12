@@ -65,6 +65,7 @@ Implementing the "single elevator control" component as a state machine is the p
    - Give names to the new minimal combined-input-output states
      - These typically identify how the system "behaves" when responding to the next event
      - Leave any un-combined data alone
+            outp
  - Implementation:
    - Create a "handler" for each event (function, message receive-case, etc.)
    - Switch/match on the behavior-state (within each event handler)
