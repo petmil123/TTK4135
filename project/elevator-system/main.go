@@ -3,10 +3,18 @@ package main
 import (
 	"Driver-go/elevator-system/elevatorStateMachine"
 	"Driver-go/elevator-system/elevio"
+	"Network-go/network/peers"
+	"flag"
 	"fmt"
 )
 
 func main() {
+
+	// Get id from command line argument
+	var id string
+	flag.StringVar(&id, "id", "", "id of this peer")
+	flag.Parse()
+
 	numFloors := 4
 	elevio.Init("localhost:15657", numFloors)
 
@@ -29,11 +37,19 @@ func main() {
 	drv_obstr := make(chan bool)
 	drv_stop := make(chan bool)
 
+	// Keep alive channels
+	peerUpdateCh := make(chan peers.PeerUpdate)
+	peerTxEnable := make(chan bool)
+
 	// Start polling
 	go elevio.PollButtons(drv_buttons)
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
+
+	// Start network
+	go peers.Transmitter(20060, id, peerTxEnable)
+	go peers.Receiver(20060, peerUpdateCh)
 
 	for {
 		select {
@@ -53,11 +69,12 @@ func main() {
 			fmt.Printf("Stop button: %+v\n", stop)
 			if stop {
 				// Clear all button lamps
-				for f := 0; f < numFloors; f++ {
-					for b := elevio.ButtonType(0); b < 3; b++ {
-						elevio.SetButtonLamp(b, f, false)
-					}
-				}
+				// for f := 0; f < numFloors; f++ {
+				// 	for b := elevio.ButtonType(0); b < 3; b++ {
+				// 		elevio.SetButtonLamp(b, f, false)
+				// 	}
+				// }
+				fmt.Println("Stop button pressed")
 			}
 
 		case elevator := <-ch.Elevator:
@@ -68,6 +85,7 @@ func main() {
 
 		case err := <-ch.StateError:
 			fmt.Printf("Error: %v\n", err)
+
 		}
 	}
 }
