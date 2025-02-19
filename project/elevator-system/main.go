@@ -13,10 +13,16 @@ func main() {
 	// Get id from command line argument
 	var id string
 	flag.StringVar(&id, "id", "", "id of this peer")
+
+	var port string
+	flag.StringVar(&port, "port", "15657", "port")
+
 	flag.Parse()
 
+	ip := "localhost:"
+
 	numFloors := 4
-	elevio.Init("localhost:15657", numFloors)
+	elevio.Init(ip+port, numFloors)
 
 	// Create channels for state machine
 	ch := elevatorStateMachine.StateMachineChannels{
