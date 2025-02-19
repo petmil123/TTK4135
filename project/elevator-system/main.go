@@ -1,9 +1,9 @@
 package main
 
 import (
+	"Driver-go/elevator-system/communication"
 	"Driver-go/elevator-system/elevatorStateMachine"
 	"Driver-go/elevator-system/elevio"
-	"Network-go/network/peers"
 	"flag"
 	"fmt"
 )
@@ -15,7 +15,7 @@ func main() {
 	flag.StringVar(&id, "id", "", "id of this peer")
 
 	var port string
-	flag.StringVar(&port, "port", "15657", "port")
+	flag.StringVar(&port, "port", "15657", "port of elevator")
 
 	flag.Parse()
 
@@ -44,8 +44,6 @@ func main() {
 	drv_stop := make(chan bool)
 
 	// Keep alive channels
-	peerUpdateCh := make(chan peers.PeerUpdate)
-	peerTxEnable := make(chan bool)
 
 	// Start polling
 	go elevio.PollButtons(drv_buttons)
@@ -53,9 +51,9 @@ func main() {
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 
+	go communication.RunCommunication(id, 20060)
+
 	// Start network
-	go peers.Transmitter(20060, id, peerTxEnable)
-	go peers.Receiver(20060, peerUpdateCh)
 
 	for {
 		select {
