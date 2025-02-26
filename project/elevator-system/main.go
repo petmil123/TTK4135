@@ -17,11 +17,12 @@ func main() {
 	var port string
 	flag.StringVar(&port, "port", "15657", "port of elevator")
 
+	var numFloors int
+	flag.IntVar(&numFloors, "numFloors", 4, "Number of floors in elevator system")
 	flag.Parse()
 
 	ip := "localhost:"
 
-	numFloors := 4
 	elevio.Init(ip+port, numFloors)
 
 	// Create channels for state machine
@@ -51,7 +52,7 @@ func main() {
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 
-	go communication.RunCommunication(id, 20060)
+	go communication.RunCommunication(id, 20060, drv_buttons, ch.OrderComplete)
 
 	// Start network
 
@@ -59,7 +60,7 @@ func main() {
 		select {
 		case buttonEvent := <-drv_buttons:
 			fmt.Printf("Button pressed: %+v\n", buttonEvent)
-			ch.NewOrder <- buttonEvent
+			// ch.NewOrder <- buttonEvent
 
 		case floor := <-drv_floors:
 			fmt.Printf("Floor sensor: %+v\n", floor)

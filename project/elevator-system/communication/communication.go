@@ -1,6 +1,7 @@
 package communication
 
 import (
+	"Driver-go/elevator-system/elevio"
 	"Network-go/network/bcast"
 	"Network-go/network/peers"
 	"fmt"
@@ -22,46 +23,25 @@ type hallCallStruct struct {
 
 type StateStruct struct {
 	Id        string
-	CabCalls  []CabCallStruct
+	CabCalls  map[string][]CabCallStruct
 	HallCalls []hallCallStruct
 }
 
-func handleStateUpdate(state *StateStruct, receivedState StateStruct) {
-	fmt.Println("Received state update: ")
-}
-
-func RunCommunication(id string, port int) {
+func RunCommunication(id string, port int, btnEvent chan elevio.ButtonEvent, orderComplete chan int) {
 	// Store peers
 	// activePeers := make([]string, 0)
 
-	// Make dummy state to have something to send
-	state := StateStruct{
-		Id: id,
-		CabCalls: []CabCallStruct{
-			{Floor: 0, Active: false, AlterId: 0},
-			{Floor: 1, Active: false, AlterId: 0},
-			{Floor: 2, Active: false, AlterId: 0},
-			{Floor: 3, Active: false, AlterId: 0},
-		},
-		HallCalls: []hallCallStruct{
-			{Floor: 0, Dir: 0, Active: false, AlterId: 0},
-			{Floor: 0, Dir: 1, Active: false, AlterId: 0},
-			{Floor: 1, Dir: 0, Active: false, AlterId: 0},
-			{Floor: 1, Dir: 1, Active: false, AlterId: 0},
-			{Floor: 2, Dir: 0, Active: false, AlterId: 0},
-			{Floor: 2, Dir: 1, Active: false, AlterId: 0},
-			{Floor: 3, Dir: 0, Active: false, AlterId: 0},
-			{Floor: 3, Dir: 1, Active: false, AlterId: 0},
-		},
-	}
+	// Initialize state for ourselves
+	state := initializeState(id)
+	fmt.Println(state)
 	// Keep alive channels
 	peerTxEnable := make(chan bool)
 
 	// state channel
 	peerUpdateCh := make(chan peers.PeerUpdate)
 
-	go peers.Transmitter(20060, id, peerTxEnable)
-	go peers.Receiver(20060, peerUpdateCh)
+	go peers.Transmitter(21060, id, peerTxEnable)
+	go peers.Receiver(21060, peerUpdateCh)
 
 	stateTx := make(chan StateStruct)
 	stateRx := make(chan StateStruct)
@@ -71,10 +51,18 @@ func RunCommunication(id string, port int) {
 
 	for {
 		select {
-		case <-time.After(1000 * time.Millisecond):
+		case <-time.After(5000 * time.Millisecond):
 			stateTx <- state
 		case receivedState := <-stateRx:
-			handleStateUpdate(&state, receivedState)
+			state = handleStateUpdate(state, receivedState)
+			fmt.Println(state)
+
+			// case peerUpdate := <-peerUpdateCh:
+			//	handlePeerUpdate()
+		case buttonEvent := <-btnEvent:
+			handleButtonEvent(state, buttonEvent, id)
+			// case floorCompleted := <-orderComgplete:
+			// handleOrderComplete()
 		}
 	}
 }
