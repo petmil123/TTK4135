@@ -4,7 +4,6 @@ import (
 	"Driver-go/elevator-system/elevio"
 	"Network-go/network/bcast"
 	"Network-go/network/peers"
-	"fmt"
 	"time"
 )
 
@@ -22,18 +21,21 @@ type hallCallStruct struct {
 }
 
 type StateStruct struct {
-	Id        string
-	CabCalls  map[string][]CabCallStruct
+	Id        string                      //id of the elevator sending
+	CabCalls  map[string][]CabCallStruct  // Cab call for each elevator
+	HallCalls map[string][]hallCallStruct //Hall calls as seen for each elevator
+}
+
+type ElevatorStateStruct struct {
+	CabCalls  []CabCallStruct
 	HallCalls []hallCallStruct
 }
 
-func RunCommunication(id string, port int, btnEvent chan elevio.ButtonEvent, orderComplete chan int) {
-	// Store peers
-	// activePeers := make([]string, 0)
+func RunCommunication(id string, port int, btnEvent chan elevio.ButtonEvent, orderComplete chan int, smCh chan ElevatorStateStruct) {
 
 	// Initialize state for ourselves
-	state := initializeState(id)
-	fmt.Println(state)
+	elevatorState := initializeState(id)
+
 	// Keep alive channels
 	peerTxEnable := make(chan bool)
 
@@ -52,15 +54,16 @@ func RunCommunication(id string, port int, btnEvent chan elevio.ButtonEvent, ord
 	for {
 		select {
 		case <-time.After(5000 * time.Millisecond):
-			stateTx <- state
+			stateTx <- elevatorState
 		case receivedState := <-stateRx:
-			state = handleStateUpdate(state, receivedState)
-			fmt.Println(state)
+			elevatorState := handleStateUpdate(elevatorState, receivedState) // This function has side effects
+			smCh <- elevatorState
 
-			// case peerUpdate := <-peerUpdateCh:
-			//	handlePeerUpdate()
+		case peerUpdate := <-peerUpdateCh:
+			handlePeerUpdate(peerUpdate, elevatorState)
+
 		case buttonEvent := <-btnEvent:
-			handleButtonEvent(state, buttonEvent, id)
+			elevatorState = handleButtonEvent(elevatorState, buttonEvent, id)
 			// case floorCompleted := <-orderComgplete:
 			// handleOrderComplete()
 		}

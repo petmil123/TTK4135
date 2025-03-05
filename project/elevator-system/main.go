@@ -33,6 +33,7 @@ func main() {
 		NewOrder:       make(chan elevio.ButtonEvent),
 		ArrivedAtFloor: make(chan int),
 		Obstruction:    make(chan bool),
+		Orders:         make(chan communication.ElevatorStateStruct),
 	}
 
 	// Start the elevator state machine
@@ -52,15 +53,15 @@ func main() {
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)
 
-	go communication.RunCommunication(id, 20060, drv_buttons, ch.OrderComplete)
+	go communication.RunCommunication(id, 20060, drv_buttons, ch.OrderComplete, ch.Orders)
 
 	// Start network
 
 	for {
 		select {
-		case buttonEvent := <-drv_buttons:
-			fmt.Printf("Button pressed: %+v\n", buttonEvent)
-			// ch.NewOrder <- buttonEvent
+		// case buttonEvent := <-drv_buttons:
+		// fmt.Printf("Button pressed: %+v\n", buttonEvent)
+		// ch.NewOrder <- buttonEvent
 
 		case floor := <-drv_floors:
 			fmt.Printf("Floor sensor: %+v\n", floor)

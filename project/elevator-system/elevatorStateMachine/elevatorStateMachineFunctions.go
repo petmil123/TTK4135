@@ -1,6 +1,7 @@
 package elevatorStateMachine
 
 import (
+	"Driver-go/elevator-system/communication"
 	"Driver-go/elevator-system/elevio"
 	"fmt"
 	"time"
@@ -187,10 +188,66 @@ func ordersBelow(elevator Elevator) bool {
 	return false
 }
 
+func isEmpty(elevator *Elevator) bool {
+	for i := range elevator.Queue {
+		for j := range elevator.Queue[i] {
+			if elevator.Queue[i][j] {
+				return true
+			}
+		}
+
+	}
+	return false
+}
+
 // clearFloorQueue clears all orders for the specified floor
 func clearFloorQueue(elevator *Elevator, floor int) {
 	for b := 0; b < 3; b++ {
 		elevator.Queue[floor][b] = false
 		elevio.SetButtonLamp(elevio.ButtonType(b), floor, false)
 	}
+}
+
+func getQueueFromOrders(orders communication.ElevatorStateStruct) [][]bool {
+	q := make([][]bool, len(orders.CabCalls))
+	for i := range q {
+		q[i] = make([]bool, 3)
+	}
+	for i := range q {
+		q[i][0] = orders.HallCalls[i*2].Active
+		q[i][1] = orders.HallCalls[i*2].Active
+		q[i][2] = orders.CabCalls[i].Active
+
+	}
+	return q
+}
+
+func handleNetworkOrders(elevator *Elevator, orders communication.ElevatorStateStruct, ch StateMachineChannels) {
+	switch elevator.State {
+	case Idle:
+		empty := isEmpty(elevator)
+		elevator.Queue = getQueueFromOrders(orders)
+		if empty {
+			for i := range elevator.Queue {
+				for j := range elevator.Queue[i] {
+					if elevator.Queue[i][j] {
+						evt := elevio.ButtonEvent{
+							Floor:  i,
+							Button: elevio.ButtonType(j),
+						}
+						go addNewOrder(ch, evt)
+					}
+				}
+
+			}
+		}
+	case Moving:
+		elevator.Queue = getQueueFromOrders(orders)
+	case DoorOpen:
+		elevator.Queue = getQueueFromOrders(orders)
+	}
+}
+
+func addNewOrder(ch StateMachineChannels, btnEvent elevio.ButtonEvent) {
+	ch.NewOrder <- btnEvent
 }

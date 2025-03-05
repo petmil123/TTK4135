@@ -1,7 +1,9 @@
 package elevatorStateMachine
 
 import (
+	"Driver-go/elevator-system/communication"
 	"Driver-go/elevator-system/elevio"
+	"fmt"
 	"time"
 )
 
@@ -14,6 +16,7 @@ type StateMachineChannels struct {
 	NewOrder       chan elevio.ButtonEvent // Receives new button press events
 	ArrivedAtFloor chan int                // Signals when elevator arrives at a floor
 	Obstruction    chan bool               // Signals when obstruction switch is activated
+	Orders         chan communication.ElevatorStateStruct
 }
 
 // Elevator represents the elevator state and properties
@@ -60,6 +63,7 @@ func RunElevator(ch StateMachineChannels, numFloors int) {
 	for {
 		select {
 		case newOrder := <-ch.NewOrder:
+			fmt.Println("NEW ORDER!")
 			handleNewOrder(&elevator, newOrder, ch, doorTimedOut, engineErrorTimer)
 
 		case elevator.Floor = <-ch.ArrivedAtFloor:
@@ -73,6 +77,11 @@ func RunElevator(ch StateMachineChannels, numFloors int) {
 
 		case obstruction := <-ch.Obstruction:
 			handleObstruction(&elevator, obstruction, doorTimedOut)
+		case orders := <-ch.Orders:
+			fmt.Println("Orders received from comm module:")
+			fmt.Println(orders)
+			handleNetworkOrders(&elevator, orders, ch)
 		}
+
 	}
 }
