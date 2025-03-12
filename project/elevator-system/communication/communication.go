@@ -2,39 +2,18 @@ package communication
 
 import (
 	"Driver-go/elevator-system/elevio"
+	"Driver-go/elevator-system/state"
 	"Network-go/network/bcast"
 	"Network-go/network/peers"
 	"time"
 )
 
-type CabCallStruct struct {
-	Floor   int
-	Active  bool
-	AlterId uint8
-}
-
-type hallCallStruct struct {
-	Floor   int
-	Dir     int
-	Active  bool
-	AlterId uint8
-}
-
-type StateStruct struct {
-	Id        string                      //id of the elevator sending
-	CabCalls  map[string][]CabCallStruct  // Cab call for each elevator
-	HallCalls map[string][]hallCallStruct //Hall calls as seen for each elevator
-}
-
-type ElevatorStateStruct struct {
-	CabCalls  []CabCallStruct
-	HallCalls []hallCallStruct
-}
-
-func RunCommunication(id string, port int, btnEvent chan elevio.ButtonEvent, orderComplete chan int, smCh chan ElevatorStateStruct) {
+func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.ButtonEvent, orderCompleteOther chan elevio.ButtonEvent, orderCompleteSelf chan elevio.ButtonEvent, newOrder chan elevio.ButtonEvent) {
 
 	// Initialize state for ourselves
-	elevatorState := initializeState(id)
+	orders := state.CreateStateStruct(id, numFloors)
+	activePeers := make([]string, 1)
+	activePeers[0] = id
 
 	// Keep alive channels
 	peerTxEnable := make(chan bool)
@@ -45,8 +24,8 @@ func RunCommunication(id string, port int, btnEvent chan elevio.ButtonEvent, ord
 	go peers.Transmitter(21060, id, peerTxEnable)
 	go peers.Receiver(21060, peerUpdateCh)
 
-	stateTx := make(chan StateStruct)
-	stateRx := make(chan StateStruct)
+	stateTx := make(chan state.StateStruct)
+	stateRx := make(chan state.StateStruct)
 
 	go bcast.Transmitter(port, stateTx)
 	go bcast.Receiver(port, stateRx)
@@ -54,18 +33,29 @@ func RunCommunication(id string, port int, btnEvent chan elevio.ButtonEvent, ord
 	for {
 		select {
 		case <-time.After(5000 * time.Millisecond):
-			stateTx <- elevatorState
+			stateTx <- orders
 		case receivedState := <-stateRx:
-			elevatorState := handleStateUpdate(elevatorState, receivedState) // This function has side effects
-			smCh <- elevatorState
+			orders.CompareIncoming(receivedState)
+			orders.SendNewHallOrders(activePeers, newOrder, orderCompleteOther)
+			orders.SendNewCabOrders(activePeers, newOrder)
 
 		case peerUpdate := <-peerUpdateCh:
-			handlePeerUpdate(peerUpdate, elevatorState)
+			activePeers = peerUpdate.Peers
 
 		case buttonEvent := <-btnEvent:
-			elevatorState = handleButtonEvent(elevatorState, buttonEvent, id)
-			// case floorCompleted := <-orderComgplete:
-			// handleOrderComplete()
+			orders.SetOrder(buttonEvent)
+			if buttonEvent.Button == elevio.BT_Cab {
+				orders.SendNewCabOrders(activePeers, newOrder)
+			} else {
+				orders.SendNewHallOrders(activePeers, newOrder, orderCompleteOther)
+			}
+		case completedOrder := <-orderCompleteSelf:
+			orders.UnsetOrder(completedOrder)
+			if completedOrder.Button == elevio.BT_Cab {
+				orders.SendNewCabOrders(activePeers, newOrder)
+			} else {
+				orders.SendNewHallOrders(activePeers, newOrder, orderCompleteOther)
+			}
 		}
 	}
 }
