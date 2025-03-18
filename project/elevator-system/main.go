@@ -4,6 +4,7 @@ import (
 	"Driver-go/elevator-system/communication"
 	"Driver-go/elevator-system/elevatorStateMachine"
 	"Driver-go/elevator-system/elevio"
+	"Driver-go/elevator-system/state"
 	"flag"
 )
 
@@ -31,8 +32,8 @@ func main() {
 
 	//Channels for passing orders between state machine and communication.
 	orderCompletedSelf := make(chan elevio.ButtonEvent)
-	orderCompletedOther := make(chan elevio.ButtonEvent)
-	newOrder := make(chan elevio.ButtonEvent)
+	orderCompletedOther := make(chan state.OrderStruct)
+	newOrder := make(chan state.OrderStruct)
 
 	// Keep alive channels
 

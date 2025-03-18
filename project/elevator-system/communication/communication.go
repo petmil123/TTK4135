@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.ButtonEvent, orderCompleteOther chan elevio.ButtonEvent, orderCompleteSelf chan elevio.ButtonEvent, newOrder chan elevio.ButtonEvent) {
+func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.ButtonEvent, orderCompleteOther chan state.OrderStruct, orderCompleteSelf chan elevio.ButtonEvent, newOrder chan state.OrderStruct) {
 
 	// Initialize state for ourselves
 	orders := state.CreateStateStruct(id, numFloors)
@@ -36,26 +36,18 @@ func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.B
 			stateTx <- orders
 		case receivedState := <-stateRx:
 			orders.CompareIncoming(receivedState)
-			orders.SendNewHallOrders(activePeers, newOrder, orderCompleteOther)
-			orders.SendNewCabOrders(activePeers, newOrder)
+			orders.SendNewOrders(activePeers, newOrder, orderCompleteOther)
 
 		case peerUpdate := <-peerUpdateCh:
 			activePeers = peerUpdate.Peers
 
 		case buttonEvent := <-btnEvent:
-			orders.SetOrder(buttonEvent)
-			if buttonEvent.Button == elevio.BT_Cab {
-				orders.SendNewCabOrders(activePeers, newOrder)
-			} else {
-				orders.SendNewHallOrders(activePeers, newOrder, orderCompleteOther)
-			}
+			orders.SetOrder(buttonEvent, true)
+			orders.SendNewOrders(activePeers, newOrder, orderCompleteOther)
+
 		case completedOrder := <-orderCompleteSelf:
-			orders.UnsetOrder(completedOrder)
-			if completedOrder.Button == elevio.BT_Cab {
-				orders.SendNewCabOrders(activePeers, newOrder)
-			} else {
-				orders.SendNewHallOrders(activePeers, newOrder, orderCompleteOther)
-			}
+			orders.SetOrder(completedOrder, false)
+			orders.SendNewOrders(activePeers, newOrder, orderCompleteOther)
 		}
 	}
 }

@@ -4,20 +4,15 @@ import (
 	"Driver-go/elevator-system/elevio"
 )
 
-// Cab calls
-type CabCallStruct struct {
-	Floor   int
-	Active  bool
-	AlterId uint8
+// Contains the status of a single order
+type OrderStruct struct {
+	Order   elevio.ButtonEvent //Identifier
+	Active  bool               //Is the order active?
+	AlterId uint8              //Cyclic counter
 }
 
-// Hall Calls
-type hallCallStruct struct {
-	Floor   int
-	Dir     int
-	Active  bool
-	AlterId uint8
-}
+// Type for the calls of each elevator
+type ElevatorStateStruct [][]OrderStruct //Should we specify how many calls there are at each floor?
 
 // Struct for the Worldview
 type StateStruct struct {
@@ -25,33 +20,26 @@ type StateStruct struct {
 	Elevators map[string]ElevatorStateStruct // Map of all seen elevators
 }
 
-// Struct containing the calls of each elevator
-type ElevatorStateStruct struct {
-	CabCalls  []CabCallStruct
-	HallCalls []hallCallStruct
-}
-
 // "Constructor" for ElevatorState with all orders inactive.
 func CreateElevatorState(numFloors int) ElevatorStateStruct {
 
-	cabCalls := make([]CabCallStruct, numFloors)
+	calls := make([][]OrderStruct, numFloors)
 	for i := 0; i < numFloors; i++ {
-		cabCalls[i] = CabCallStruct{Floor: i, Active: false, AlterId: 0}
+		floorCalls := make([]OrderStruct, 3)
+		for j := 0; j < 3; j++ {
+			floorCalls[j].Order = elevio.ButtonEvent{
+				Floor:  i,
+				Button: elevio.ButtonType(j),
+			}
+			floorCalls[j].Active = false
+			floorCalls[j].AlterId = 0
+		}
+		calls[i] = floorCalls
 	}
-
-	hallCalls := make([]hallCallStruct, numFloors*2)
-	for i := 0; i < numFloors; i++ {
-		hallCalls[2*i] = hallCallStruct{Floor: i, Dir: 0, Active: false, AlterId: 0}
-		hallCalls[2*i+1] = hallCallStruct{Floor: i, Dir: 1, Active: false, AlterId: 0}
-	}
-
-	return ElevatorStateStruct{
-		CabCalls:  cabCalls,
-		HallCalls: hallCalls,
-	}
-
+	return calls
 }
 
+// Initialize global worldview
 func CreateStateStruct(id string, numFloors int) StateStruct {
 	elevators := make(map[string]ElevatorStateStruct)
 	elevators[id] = CreateElevatorState(numFloors)
@@ -62,19 +50,26 @@ func CreateStateStruct(id string, numFloors int) StateStruct {
 	}
 }
 
-// Compare single elevator state
+// Compares all orders for a single elevator and updates if there are more recent edits.
 func (own *ElevatorStateStruct) compareIncoming(incoming ElevatorStateStruct) {
-	for i, ownCabCall := range own.CabCalls {
-		if incoming.CabCalls[i].AlterId > ownCabCall.AlterId { // How to handle cyclic wraparound?
-			own.CabCalls[i] = incoming.CabCalls[i]
+	for i, incomingFloors := range incoming {
+		for j, incomingOrder := range incomingFloors {
+			if incomingOrder.AlterId > (*own)[i][j].AlterId {
+				(*own)[i][j] = incomingOrder
+			}
 		}
 	}
-	for i, ownHallCall := range own.HallCalls {
-		if incoming.HallCalls[i].AlterId > ownHallCall.AlterId {
-			own.HallCalls[i] = incoming.HallCalls[i]
-		}
-	}
+}
 
+// Compares hall calls and updates for more recent edits.
+func (own *ElevatorStateStruct) compareIncomingHall(incoming ElevatorStateStruct) {
+	for i, incomingFloors := range incoming {
+		for j := 0; j < 2; j++ {
+			if incomingFloors[j].AlterId > (*own)[i][j].AlterId {
+				(*own)[i][j] = incomingFloors[j]
+			}
+		}
+	}
 }
 
 // Looks at incoming state and updates state based on alterId.
@@ -93,77 +88,27 @@ func (own *StateStruct) CompareIncoming(incoming StateStruct) {
 	}
 
 	//Also, update hall calls so that new hall calls from incoming are propagated to ourselves
-	ownHallCalls := own.Elevators[own.Id].HallCalls
-	incomingHallCalls := incoming.Elevators[incoming.Id].HallCalls
-
-	for i, ownVal := range ownHallCalls {
-		if incomingHallCalls[i].AlterId > ownVal.AlterId { //How to handle cyclic wraparound?
-			own.Elevators[own.Id].HallCalls[i] = incomingHallCalls[i]
-		}
+	own_val, exists := own.Elevators[own.Id] //Does not work without this check
+	if exists {
+		own_val.compareIncomingHall(incoming.Elevators[incoming.Id])
+		own.Elevators[own.Id] = own_val
 	}
 }
 
-// Sets an order in the elevator state
-func (elev *ElevatorStateStruct) SetOrder(button elevio.ButtonEvent) {
-	switch button.Button {
-	case elevio.BT_HallUp:
-		if !elev.HallCalls[2*button.Floor].Active {
-			elev.HallCalls[2*button.Floor].Active = true
-			elev.HallCalls[2*button.Floor].AlterId++
-		}
-	case elevio.BT_HallDown:
-		if !elev.HallCalls[2*button.Floor+1].Active {
-			elev.HallCalls[2*button.Floor+1].Active = true
-			elev.HallCalls[2*button.Floor+1].AlterId++
-		}
-	case elevio.BT_Cab:
-		if !elev.CabCalls[button.Floor].Active {
-			elev.CabCalls[button.Floor].Active = true
-			elev.CabCalls[button.Floor].AlterId++
-
-		}
+// Sets an order in the elevator state if not already set.
+func (elev *ElevatorStateStruct) SetOrder(btn elevio.ButtonEvent, val bool) {
+	if (*elev)[btn.Floor][btn.Button].Active != val {
+		(*elev)[btn.Floor][btn.Button].Active = val
+		(*elev)[btn.Floor][btn.Button].AlterId++
 	}
 }
 
 // Sets an order at itself in the worldview state.
-func (s *StateStruct) SetOrder(button elevio.ButtonEvent) {
-	val, exists := s.Elevators[s.Id]
+func (s *StateStruct) SetOrder(btn elevio.ButtonEvent, val bool) {
+	elevator, exists := s.Elevators[s.Id]
 	if exists {
-		val.SetOrder(button)
-		s.Elevators[s.Id] = val
-	} else {
-		panic("Elevator state does not know about itself!")
-	}
-}
-
-// Sets an order in the elevator state
-func (elev *ElevatorStateStruct) UnsetOrder(button elevio.ButtonEvent) {
-	switch button.Button {
-	case elevio.BT_HallUp:
-		if elev.HallCalls[2*button.Floor].Active {
-			elev.HallCalls[2*button.Floor].Active = false
-			elev.HallCalls[2*button.Floor].AlterId++
-		}
-	case elevio.BT_HallDown:
-		if elev.HallCalls[2*button.Floor+1].Active {
-			elev.HallCalls[2*button.Floor+1].Active = false
-			elev.HallCalls[2*button.Floor+1].AlterId++
-		}
-	case elevio.BT_Cab:
-		if elev.CabCalls[button.Floor].Active {
-			elev.CabCalls[button.Floor].Active = false
-			elev.CabCalls[button.Floor].AlterId++
-
-		}
-	}
-}
-
-// Unsets an order at itself in the worldview state
-func (s *StateStruct) UnsetOrder(button elevio.ButtonEvent) {
-	val, exists := s.Elevators[s.Id]
-	if exists {
-		val.SetOrder(button)
-		s.Elevators[s.Id] = val
+		elevator.SetOrder(btn, val)
+		s.Elevators[s.Id] = elevator
 	} else {
 		panic("Elevator state does not know about itself!")
 	}
@@ -173,42 +118,24 @@ func (s *StateStruct) UnsetOrder(button elevio.ButtonEvent) {
 // channel if this is the case.
 //
 // Not 100% sure this is the right way to do it, some issues might occur
-func (s *StateStruct) SendNewHallOrders(peerList []string,
-	newOrderCh chan<- elevio.ButtonEvent, completedOrderCh chan<- elevio.ButtonEvent) {
-	for i, selfVal := range s.Elevators[s.Id].HallCalls {
-		allEqual := true
-		for _, peer := range peerList {
-			if s.Elevators[peer].HallCalls[i].Active != selfVal.Active {
-				allEqual = false
-				break
+func (s *StateStruct) SendNewOrders(peerList []string,
+	newOrderCh chan<- OrderStruct, completedOrderCh chan<- OrderStruct) {
+	for floor, floorCalls := range s.Elevators[s.Id] {
+		for i, call := range floorCalls {
+			allEqual := true
+			for _, p := range peerList {
+				if s.Elevators[p][floor][i].Active != call.Active {
+					allEqual = false
+				}
+			}
+			if allEqual {
+				if floorCalls[i].Active {
+					newOrderCh <- floorCalls[i]
+				} else if i < 2 { // Disregard cab calls
+					completedOrderCh <- floorCalls[i]
+				}
 			}
 		}
-		if allEqual {
-			button := elevio.ButtonType(i % 2)
-			if selfVal.Active {
-				newOrderCh <- elevio.ButtonEvent{Floor: selfVal.Floor, Button: button}
-			} else {
-				completedOrderCh <- elevio.ButtonEvent{Floor: selfVal.Floor, Button: button}
-			}
-		}
-	}
-}
 
-// Checks if some cab orders are known by everyone, and sends a message if this is the case.
-func (s *StateStruct) SendNewCabOrders(peerList []string, newOrderCh chan<- elevio.ButtonEvent) {
-	for i, selfVal := range s.Elevators[s.Id].CabCalls {
-		if !selfVal.Active {
-			continue
-		}
-		allEqual := true
-		for _, peer := range peerList {
-			if s.Elevators[peer].CabCalls[i].Active != selfVal.Active {
-				allEqual = false
-				break
-			}
-		}
-		if allEqual {
-			newOrderCh <- elevio.ButtonEvent{Floor: selfVal.Floor, Button: elevio.BT_Cab}
-		}
 	}
 }

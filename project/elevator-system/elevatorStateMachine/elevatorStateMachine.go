@@ -52,14 +52,14 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 				}
 			}
 		case completedOrder := <-inputs.OrderCompletedOther:
-			elevator.Orders.UnsetOrder(completedOrder)
+			elevator.Orders.SetOrder(completedOrder.Order, false)
 		case newOrder := <-inputs.NewOrder:
-			elevator.Orders.SetOrder(newOrder)
+			elevator.Orders.SetOrder(newOrder.Order, true)
 			switch elevator.MachineState {
 			case Idle:
-				if newOrder.Floor == elevator.Floor {
+				if newOrder.Order.Floor == elevator.Floor {
 					elevator.setState(DoorOpen)
-				} else if newOrder.Floor > elevator.Floor {
+				} else if newOrder.Order.Floor > elevator.Floor {
 					elevator.setState(Up)
 				} else {
 					elevator.setState(Down)

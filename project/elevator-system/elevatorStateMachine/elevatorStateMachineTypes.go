@@ -12,8 +12,8 @@ type StateMachineInputs struct {
 	Obstruction  <-chan bool // Obstruction button toggled
 	FloorArrival <-chan int  // Arrived at floor n
 	//Communication
-	OrderCompletedOther <-chan elevio.ButtonEvent //Another elevator finished this kind of order
-	NewOrder            <-chan elevio.ButtonEvent //A new order is added to the orders
+	OrderCompletedOther <-chan state.OrderStruct //Another elevator finished this kind of order
+	NewOrder            <-chan state.OrderStruct //A new order is added to the orders
 	//Internal
 }
 
@@ -90,7 +90,7 @@ func (e *ElevatorState) setState(s MachineState) {
 		e.DoorTimer.Reset(3 * time.Second)
 		e.MachineState = DoorOpen
 	}
-	fmt.Println(e.MachineState)
+	fmt.Println(e.Orders)
 }
 
 // Sets the floor in state and handles IO
@@ -102,76 +102,80 @@ func (e *ElevatorState) setFloor(floor int) {
 // Checks if we have a cab call or a hall call in that direction
 // for a given floor (if the direction is up or down)
 func (e *ElevatorState) hasOrders(s MachineState, floor int) bool {
-	if e.Orders.CabCalls[floor].Active {
-		return true
-	} else if s == Up {
-		return e.Orders.HallCalls[2*floor].Active
+	if s == Up {
+		return e.Orders[floor][elevio.BT_Cab].Active ||
+			e.Orders[floor][elevio.BT_HallUp].Active
 	} else if s == Down {
-		return e.Orders.HallCalls[2*floor+1].Active
+		return e.Orders[floor][elevio.BT_Cab].Active ||
+			e.Orders[floor][elevio.BT_HallDown].Active
 	} else {
-		return e.Orders.HallCalls[2*floor].Active ||
-			e.Orders.HallCalls[2*floor+1].Active
+		return e.Orders[floor][elevio.BT_HallUp].Active
 	}
 }
 
+// Checks if there is a cab order above the current floor
 func (e *ElevatorState) hasCabOrderAbove(floor int) bool {
-	for i := floor + 1; i < len(e.Orders.CabCalls); i++ {
-		if e.Orders.CabCalls[i].Active {
+	for i := floor + 1; i < len(e.Orders); i++ {
+		if e.Orders[i][2].Active {
 			return true
 		}
 	}
 	return false
 }
 
+// Checks if there is a cab order below the current floor
 func (e *ElevatorState) hasCabOrderBelow(floor int) bool {
 	for i := floor - 1; i >= 0; i-- {
-		if e.Orders.CabCalls[i].Active {
+		if e.Orders[i][2].Active {
 			return true
 		}
 	}
 	return false
 }
 
+// Checks if there is a hall order above the current floor
 func (e *ElevatorState) hasHallOrderAbove(floor int) bool {
-	for i := floor + 1; i < len(e.Orders.CabCalls); i++ {
-		if e.Orders.HallCalls[2*i].Active ||
-			e.Orders.HallCalls[2*i+1].Active {
-			return true
+	for i := floor + 1; i < len(e.Orders); i++ {
+		for j := 0; j < 2; j++ {
+			if e.Orders[i][j].Active {
+				return true
+			}
 		}
 	}
 	return false
 }
 
+// Checks if there is a hall order below the current floor
 func (e *ElevatorState) hasHallOrderBelow(floor int) bool {
 	for i := floor - 1; i >= 0; i-- {
-		if e.Orders.HallCalls[2*i].Active ||
-			e.Orders.HallCalls[2*i+1].Active {
-			return true
+		for j := 0; j < 2; j++ {
+			if e.Orders[i][j].Active {
+				return true
+			}
 		}
 	}
 	return false
 }
 
+// Clear orders when opening a door at the floor. We clear cab calls and hall calls
+// in the direction of travel (should be future direction)
 func (e *ElevatorState) clearOrders(s MachineState, floor int) {
-	if e.Orders.CabCalls[floor].Active {
-		e.Orders.UnsetOrder(elevio.ButtonEvent{
+	if e.Orders[floor][2].Active {
+		e.Orders.SetOrder(elevio.ButtonEvent{
 			Floor:  floor,
 			Button: elevio.BT_Cab,
-		})
+		}, false)
 	}
-	if s == Up {
-		if e.Orders.HallCalls[2*floor].Active {
-			e.Orders.UnsetOrder(elevio.ButtonEvent{
-				Floor:  floor,
-				Button: elevio.BT_HallUp,
-			})
-		}
-	} else if s == Down {
-		if e.Orders.HallCalls[2*floor+1].Active {
-			e.Orders.UnsetOrder(elevio.ButtonEvent{
-				Floor:  floor,
-				Button: elevio.BT_HallDown,
-			})
-		}
+	if s == Up && e.Orders[floor][elevio.BT_HallUp].Active {
+		e.Orders.SetOrder(elevio.ButtonEvent{
+			Floor:  floor,
+			Button: elevio.BT_HallUp,
+		}, false)
+
+	} else if s == Down && e.Orders[floor][elevio.BT_HallDown].Active {
+		e.Orders.SetOrder(elevio.ButtonEvent{
+			Floor:  floor,
+			Button: elevio.BT_HallDown,
+		}, false)
 	}
 }
