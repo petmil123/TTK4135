@@ -1,6 +1,8 @@
 package state
 
-import "Driver-go/elevator-system/elevio"
+import (
+	"Driver-go/elevator-system/elevio"
+)
 
 // Cab calls
 type CabCallStruct struct {
@@ -30,7 +32,7 @@ type ElevatorStateStruct struct {
 }
 
 // "Constructor" for ElevatorState with all orders inactive.
-func createElevatorState(numFloors int) ElevatorStateStruct {
+func CreateElevatorState(numFloors int) ElevatorStateStruct {
 
 	cabCalls := make([]CabCallStruct, numFloors)
 	for i := 0; i < numFloors; i++ {
@@ -52,7 +54,7 @@ func createElevatorState(numFloors int) ElevatorStateStruct {
 
 func CreateStateStruct(id string, numFloors int) StateStruct {
 	elevators := make(map[string]ElevatorStateStruct)
-	elevators[id] = createElevatorState(numFloors)
+	elevators[id] = CreateElevatorState(numFloors)
 
 	return StateStruct{
 		Id:        id,
