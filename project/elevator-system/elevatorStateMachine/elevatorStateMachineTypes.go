@@ -3,7 +3,6 @@ package elevatorStateMachine
 import (
 	"Driver-go/elevator-system/elevio"
 	"Driver-go/elevator-system/state"
-	"fmt"
 
 	"time"
 )
@@ -95,7 +94,6 @@ func (e *ElevatorState) setState(s MachineState) {
 		e.DoorTimer.Reset(3 * time.Second)
 		e.MachineState = DoorOpen
 	}
-	fmt.Println("Machine state:", e.MachineState)
 }
 
 // Sets the floor in state and handles IO

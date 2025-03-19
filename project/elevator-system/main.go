@@ -31,7 +31,7 @@ func main() {
 	drv_obstr := make(chan bool)
 
 	//Channels for passing orders between state machine and communication.
-	orderCompletedSelf := make(chan elevio.ButtonEvent, 4)
+	orderCompletedSelf := make(chan elevio.ButtonEvent, 4) //Added buffer to not block
 	stateCh := make(chan state.ElevatorStateStruct)
 
 	// Keep alive channels
