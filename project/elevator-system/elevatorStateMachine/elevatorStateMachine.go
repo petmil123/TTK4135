@@ -23,16 +23,19 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 			}
 
 		case arrivedFloor := <-inputs.FloorArrival:
+			fmt.Println("arrived at floor", elevator.Floor)
 			elevator.setFloor(arrivedFloor)
 			switch elevator.MachineState {
 			case Up:
 				if elevator.hasOrder(elevio.BT_Cab, elevator.Floor) || elevator.hasOrder(elevio.BT_HallUp, elevator.Floor) {
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_Cab}, outputs.OrderCompleted)
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
 					elevator.setState(DoorOpen)
-					elevator.clearOrder()
 				} else if elevator.hasCabOrderAbove(elevator.Floor) || elevator.hasHallOrderAbove(elevator.Floor) {
 					elevator.setState(Up)
 				} else if elevator.hasOrder(elevio.BT_HallDown, elevator.Floor) {
 					elevator.setState(DoorOpen)
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
 				} else if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
 					elevator.setState(Down)
 				} else {
@@ -41,10 +44,13 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 			case Down:
 				if elevator.hasOrder(elevio.BT_Cab, elevator.Floor) || elevator.hasOrder(elevio.BT_HallDown, elevator.Floor) {
 					elevator.setState(DoorOpen)
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_Cab}, outputs.OrderCompleted)
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
 				} else if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
 					elevator.setState(Down)
 				} else if elevator.hasOrder(elevio.BT_HallUp, elevator.Floor) {
 					elevator.setState(DoorOpen)
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
 				} else if elevator.hasCabOrderAbove(elevator.Floor) || elevator.hasHallOrderAbove(elevator.Floor) {
 					elevator.setState(Up)
 				} else {
@@ -63,7 +69,9 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 			case Idle:
 				if elevator.hasOrderAtFloor(elevator.Floor) {
 					elevator.setState(DoorOpen)
-					elevator.clearOrders(elevator.MachineState, elevator.Floor, outputs.OrderCompleted)
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
+					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_Cab}, outputs.OrderCompleted)
 				} else if elevator.hasCabOrderAbove(elevator.Floor) {
 					elevator.setState(Up)
 				} else if elevator.hasCabOrderBelow(elevator.Floor) {
@@ -75,6 +83,8 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 				} else {
 					elevator.setState(Idle)
 				}
+			case DoorOpen:
+
 			}
 
 		case <-elevator.DoorTimer.C:
@@ -83,19 +93,31 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 				fmt.Println("Obstruction, keep on in door open.")
 				elevator.setState(DoorOpen)
 			} else {
-				if elevator.hasOrders(elevator.MachineState, elevator.Floor) {
-					elevator.setState(DoorOpen)
-					elevator.clearOrders(elevator.MachineState, elevator.Floor, outputs.OrderCompleted)
-				} else if elevator.hasCabOrderBelow(elevator.Floor) {
-					elevator.setState(Down)
-				} else if elevator.hasCabOrderAbove(elevator.Floor) {
-					elevator.setState(Up)
-				} else if elevator.hasHallOrderBelow(elevator.Floor) {
-					elevator.setState(Down)
-				} else if elevator.hasHallOrderAbove(elevator.Floor) {
-					elevator.setState(Up)
-				} else {
-					elevator.setState(Idle)
+				switch elevator.NextDirection {
+				case Up, Idle:
+					if elevator.hasCabOrderAbove(elevator.Floor) || elevator.hasHallOrderAbove(elevator.Floor) {
+						elevator.setState(Up)
+					} else if elevator.hasOrder(elevio.BT_HallDown, elevator.Floor) { //TODO: Må vi ha cab her?
+						elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
+						elevator.setState(DoorOpen)
+					} else if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
+						elevator.NextDirection = Down
+						elevator.setState(DoorOpen)
+					} else {
+						elevator.setState(Idle)
+					}
+				case Down:
+					if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
+						elevator.setState(Down)
+					} else if elevator.hasOrder(elevio.BT_HallUp, elevator.Floor) { //TODO: Må vi ha cab her?
+						elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
+						elevator.setState(DoorOpen)
+					} else if elevator.hasCabOrderAbove(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
+						elevator.NextDirection = Up
+						elevator.setState(DoorOpen)
+					} else {
+						elevator.setState(Idle)
+					}
 				}
 			}
 		}

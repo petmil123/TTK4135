@@ -33,7 +33,7 @@ func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.B
 
 	for {
 		select {
-		case <-time.After(5000 * time.Millisecond):
+		case <-time.After(50 * time.Millisecond):
 			stateTx <- orders
 
 		case receivedState := <-stateRx:

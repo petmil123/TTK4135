@@ -4,6 +4,7 @@ import (
 	"Driver-go/elevator-system/elevio"
 	"Driver-go/elevator-system/state"
 	"fmt"
+
 	"time"
 )
 
@@ -33,6 +34,7 @@ type ElevatorState struct {
 	MachineState  MachineState              //Which state the FSM is in
 	Obstructed    bool                      //Is the machine obstructed?
 	PrevDirection elevio.MotorDirection     //Previous *moving* direction for choice of direction
+	NextDirection MachineState              //The direction in which we have cleared a hall order
 	Orders        state.ElevatorStateStruct //Orders
 	Floor         int                       //Which floor we previously were at.
 	DoorTimer     *time.Timer               //Timer for the door
@@ -44,6 +46,7 @@ func initializeElevator(numFloors int, timer *time.Timer) ElevatorState {
 		MachineState:  Idle,
 		Obstructed:    false,
 		PrevDirection: elevio.MD_Stop,
+		NextDirection: Idle,
 		Orders:        state.CreateElevatorState(numFloors),
 		Floor:         1,
 		DoorTimer:     timer,
@@ -52,6 +55,9 @@ func initializeElevator(numFloors int, timer *time.Timer) ElevatorState {
 
 // Sets the state after a state transition, and does everything that needs to be done with the elevator IO.
 func (e *ElevatorState) setState(s MachineState) {
+	if e.MachineState == DoorOpen {
+		e.DoorTimer.Stop()
+	}
 	switch s {
 	case Idle:
 		// Stop the engine
@@ -89,7 +95,7 @@ func (e *ElevatorState) setState(s MachineState) {
 		e.DoorTimer.Reset(3 * time.Second)
 		e.MachineState = DoorOpen
 	}
-	// fmt.Println(e.Orders)
+	fmt.Println("Machine state:", e.MachineState)
 }
 
 // Sets the floor in state and handles IO
@@ -159,14 +165,15 @@ func (e *ElevatorState) hasHallOrderBelow(floor int) bool {
 
 // Clear orders when opening a door at the floor. We clear cab calls and hall calls
 // in the direction of travel (should be future direction)
-func (e *ElevatorState) clearOrders(s MachineState, floor int, outputCh chan<- elevio.ButtonEvent) {
-	fmt.Println("Clearing orders")
-	outputCh <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_Cab}
-	if s == Up {
-		outputCh <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
-	} else if s == Down {
-		outputCh <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
+//
+// Also updates the nextDirection state.
+func (e *ElevatorState) clearOrder(btn elevio.ButtonEvent, outputCh chan<- elevio.ButtonEvent) {
+	if btn.Button == elevio.BT_HallUp {
+		e.NextDirection = Up
+	} else if btn.Button == elevio.BT_HallDown {
+		e.NextDirection = Down
 	}
+	outputCh <- btn
 }
 
 func (e *ElevatorState) CalculateNextDir() MachineState {
