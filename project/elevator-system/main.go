@@ -32,8 +32,7 @@ func main() {
 
 	//Channels for passing orders between state machine and communication.
 	orderCompletedSelf := make(chan elevio.ButtonEvent)
-	orderCompletedOther := make(chan state.OrderStruct)
-	newOrder := make(chan state.OrderStruct)
+	stateCh := make(chan state.ElevatorStateStruct)
 
 	// Keep alive channels
 
@@ -43,51 +42,14 @@ func main() {
 	go elevio.PollObstructionSwitch(drv_obstr)
 
 	go elevatorStateMachine.RunElevator(elevatorStateMachine.StateMachineInputs{
-		Obstruction:         drv_obstr,
-		FloorArrival:        drv_floors,
-		OrderCompletedOther: orderCompletedOther,
-		NewOrder:            newOrder,
+		Obstruction:  drv_obstr,
+		FloorArrival: drv_floors,
+		StateCh:      stateCh,
 	}, elevatorStateMachine.StateMachineOutputs{
 		OrderCompleted: orderCompletedSelf,
 	}, numFloors)
-	go communication.RunCommunication(id, numFloors, 20060, drv_buttons, orderCompletedOther, orderCompletedSelf, newOrder)
+	go communication.RunCommunication(id, numFloors, 20060, drv_buttons, orderCompletedSelf, stateCh)
+
 	select {}
-	// Start network
-	// for {
-	// 	select {
-	// 	// case buttonEvent := <-drv_buttons:
-	// 	// fmt.Printf("Button pressed: %+v\n", buttonEvent)
-	// 	// ch.NewOrder <- buttonEvent
 
-	// 	case floor := <-drv_floors:
-	// 		fmt.Printf("Floor sensor: %+v\n", floor)
-	// 		ch.ArrivedAtFloor <- floor
-
-	// 	case obstruction := <-drv_obstr:
-	// 		fmt.Printf("Obstruction: %+v\n", obstruction)
-	// 		ch.Obstruction <- obstruction
-
-	// 	case stop := <-drv_stop:
-	// 		fmt.Printf("Stop button: %+v\n", stop)
-	// 		if stop {
-	// 			// Clear all button lamps
-	// 			// for f := 0; f < numFloors; f++ {
-	// 			// 	for b := elevio.ButtonType(0); b < 3; b++ {
-	// 			// 		elevio.SetButtonLamp(b, f, false)
-	// 			// 	}
-	// 			// }
-	// 			fmt.Println("Stop button pressed")
-	// 		}
-
-	// 	case elevator := <-ch.Elevator:
-	// 		fmt.Printf("Elevator state updated: %+v\n", elevator)
-
-	// 	case floor := <-ch.OrderComplete:
-	// 		fmt.Printf("Order completed at floor: %d\n", floor)
-
-	// 	case err := <-ch.StateError:
-	// 		fmt.Printf("Error: %v\n", err)
-
-	// 	}
-	// }
 }

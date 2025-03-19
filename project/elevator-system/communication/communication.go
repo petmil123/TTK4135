@@ -1,3 +1,4 @@
+// Communication and management of state.
 package communication
 
 import (
@@ -8,7 +9,7 @@ import (
 	"time"
 )
 
-func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.ButtonEvent, orderCompleteOther chan state.OrderStruct, orderCompleteSelf chan elevio.ButtonEvent, newOrder chan state.OrderStruct) {
+func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.ButtonEvent, orderComplete chan elevio.ButtonEvent, elevatorStateCh chan state.ElevatorStateStruct) {
 
 	// Initialize state for ourselves
 	orders := state.CreateStateStruct(id, numFloors)
@@ -34,20 +35,20 @@ func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.B
 		select {
 		case <-time.After(5000 * time.Millisecond):
 			stateTx <- orders
+
 		case receivedState := <-stateRx:
 			orders.CompareIncoming(receivedState)
-			orders.SendNewOrders(activePeers, newOrder, orderCompleteOther)
+			elevatorStateCh <- orders.GetConfirmedOrders(activePeers)
 
 		case peerUpdate := <-peerUpdateCh:
 			activePeers = peerUpdate.Peers
 
 		case buttonEvent := <-btnEvent:
-			orders.SetOrder(buttonEvent, true)
-			orders.SendNewOrders(activePeers, newOrder, orderCompleteOther)
-
-		case completedOrder := <-orderCompleteSelf:
-			orders.SetOrder(completedOrder, false)
-			orders.SendNewOrders(activePeers, newOrder, orderCompleteOther)
+			orders.SetButtonOrder(buttonEvent, true)
+			elevatorStateCh <- orders.GetConfirmedOrders(activePeers)
+		case completedOrder := <-orderComplete:
+			orders.SetButtonOrder(completedOrder, false)
+			elevatorStateCh <- orders.GetConfirmedOrders(activePeers)
 		}
 	}
 }

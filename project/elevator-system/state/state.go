@@ -95,8 +95,16 @@ func (own *StateStruct) CompareIncoming(incoming StateStruct) {
 	}
 }
 
-// Sets an order in the elevator state if not already set.
-func (elev *ElevatorStateStruct) SetOrder(btn elevio.ButtonEvent, val bool) {
+// Compares single order sent and updates if newer, for message passing.
+func (own *ElevatorStateStruct) CompareIncomingSingle(incoming OrderStruct) {
+	btn := incoming.Order
+	if (*own)[btn.Floor][btn.Button].AlterId <= incoming.AlterId {
+		(*own)[btn.Floor][btn.Button] = incoming
+	}
+}
+
+// This is the function for button presses and clearing orders.
+func (elev *ElevatorStateStruct) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 	if (*elev)[btn.Floor][btn.Button].Active != val {
 		(*elev)[btn.Floor][btn.Button].Active = val
 		(*elev)[btn.Floor][btn.Button].AlterId++
@@ -104,10 +112,10 @@ func (elev *ElevatorStateStruct) SetOrder(btn elevio.ButtonEvent, val bool) {
 }
 
 // Sets an order at itself in the worldview state.
-func (s *StateStruct) SetOrder(btn elevio.ButtonEvent, val bool) {
+func (s *StateStruct) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 	elevator, exists := s.Elevators[s.Id]
 	if exists {
-		elevator.SetOrder(btn, val)
+		elevator.SetButtonOrder(btn, val)
 		s.Elevators[s.Id] = elevator
 	} else {
 		panic("Elevator state does not know about itself!")
@@ -138,4 +146,22 @@ func (s *StateStruct) SendNewOrders(peerList []string,
 		}
 
 	}
+}
+
+func (s *StateStruct) GetConfirmedOrders(peerList []string) ElevatorStateStruct {
+	self := s.Elevators[s.Id]
+	toReturn := CreateElevatorState(len(self))
+	for floor, floorOrders := range self {
+		for btn, order := range floorOrders {
+			minElement := order
+
+			for _, peer := range peerList {
+				if s.Elevators[peer][floor][btn].AlterId > minElement.AlterId {
+					minElement = s.Elevators[peer][floor][btn]
+				}
+			}
+			toReturn[floor][btn] = minElement
+		}
+	}
+	return toReturn
 }

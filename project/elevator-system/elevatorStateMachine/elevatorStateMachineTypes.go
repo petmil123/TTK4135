@@ -12,8 +12,7 @@ type StateMachineInputs struct {
 	Obstruction  <-chan bool // Obstruction button toggled
 	FloorArrival <-chan int  // Arrived at floor n
 	//Communication
-	OrderCompletedOther <-chan state.OrderStruct //Another elevator finished this kind of order
-	NewOrder            <-chan state.OrderStruct //A new order is added to the orders
+	StateCh <-chan state.ElevatorStateStruct //A new order is added to the orders
 	//Internal
 }
 
@@ -51,8 +50,8 @@ func initializeElevator(numFloors int, timer *time.Timer) ElevatorState {
 	}
 }
 
+// Sets the state after a state transition, and does everything that needs to be done with the elevator IO.
 func (e *ElevatorState) setState(s MachineState) {
-	//Sets the state after a state transition, and does everything that needs to be done with the elevator IO.
 	switch s {
 	case Idle:
 		// Stop the engine
@@ -90,7 +89,7 @@ func (e *ElevatorState) setState(s MachineState) {
 		e.DoorTimer.Reset(3 * time.Second)
 		e.MachineState = DoorOpen
 	}
-	fmt.Println(e.Orders)
+	// fmt.Println(e.Orders)
 }
 
 // Sets the floor in state and handles IO
@@ -101,16 +100,17 @@ func (e *ElevatorState) setFloor(floor int) {
 
 // Checks if we have a cab call or a hall call in that direction
 // for a given floor (if the direction is up or down)
-func (e *ElevatorState) hasOrders(s MachineState, floor int) bool {
-	if s == Up {
-		return e.Orders[floor][elevio.BT_Cab].Active ||
-			e.Orders[floor][elevio.BT_HallUp].Active
-	} else if s == Down {
-		return e.Orders[floor][elevio.BT_Cab].Active ||
-			e.Orders[floor][elevio.BT_HallDown].Active
-	} else {
-		return e.Orders[floor][elevio.BT_HallUp].Active
+func (e *ElevatorState) hasOrder(btn elevio.ButtonType, floor int) bool {
+	return e.Orders[floor][btn].Active
+}
+
+func (e *ElevatorState) hasOrderAtFloor(floor int) bool {
+	for _, order := range e.Orders[floor] {
+		if order.Active {
+			return true
+		}
 	}
+	return false
 }
 
 // Checks if there is a cab order above the current floor
@@ -159,23 +159,42 @@ func (e *ElevatorState) hasHallOrderBelow(floor int) bool {
 
 // Clear orders when opening a door at the floor. We clear cab calls and hall calls
 // in the direction of travel (should be future direction)
-func (e *ElevatorState) clearOrders(s MachineState, floor int) {
-	if e.Orders[floor][2].Active {
-		e.Orders.SetOrder(elevio.ButtonEvent{
-			Floor:  floor,
-			Button: elevio.BT_Cab,
-		}, false)
+func (e *ElevatorState) clearOrders(s MachineState, floor int, outputCh chan<- elevio.ButtonEvent) {
+	fmt.Println("Clearing orders")
+	outputCh <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_Cab}
+	if s == Up {
+		outputCh <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
+	} else if s == Down {
+		outputCh <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
 	}
-	if s == Up && e.Orders[floor][elevio.BT_HallUp].Active {
-		e.Orders.SetOrder(elevio.ButtonEvent{
-			Floor:  floor,
-			Button: elevio.BT_HallUp,
-		}, false)
+}
 
-	} else if s == Down && e.Orders[floor][elevio.BT_HallDown].Active {
-		e.Orders.SetOrder(elevio.ButtonEvent{
-			Floor:  floor,
-			Button: elevio.BT_HallDown,
-		}, false)
+func (e *ElevatorState) CalculateNextDir() MachineState {
+	switch e.MachineState {
+	case Up:
+		if e.hasCabOrderAbove(e.Floor) {
+			return Up
+		} else if e.hasCabOrderBelow(e.Floor) {
+			return Down
+		} else if e.hasHallOrderAbove(e.Floor) {
+			return Up
+		} else if e.hasHallOrderBelow(e.Floor) {
+			return Down
+		} else {
+			return Idle
+		}
+	case Down:
+		if e.hasCabOrderBelow(e.Floor) {
+			return Down
+		} else if e.hasCabOrderAbove(e.Floor) {
+			return Up
+		} else if e.hasHallOrderBelow(e.Floor) {
+			return Down
+		} else if e.hasHallOrderAbove(e.Floor) {
+			return Up
+		} else {
+			return Idle
+		}
 	}
+	return Idle
 }
