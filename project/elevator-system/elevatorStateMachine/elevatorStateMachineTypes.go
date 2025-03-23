@@ -12,12 +12,13 @@ type StateMachineInputs struct {
 	Obstruction  <-chan bool // Obstruction button toggled
 	FloorArrival <-chan int  // Arrived at floor n
 	//Communication
-	StateCh <-chan state.ElevatorOrders //A new order is added to the orders
+	OrderCh <-chan state.ElevatorOrders //A new order is added to the orders
 	//Internal
 }
 
 type StateMachineOutputs struct {
 	OrderCompleted chan<- elevio.ButtonEvent
+	StateCh        chan<- state.ElevatorState
 }
 
 type MachineState int
@@ -46,7 +47,7 @@ func initializeElevator(numFloors int, timer *time.Timer) ElevatorState {
 		Obstructed:    false,
 		PrevDirection: elevio.MD_Stop,
 		NextDirection: Idle,
-		Orders:        state.CreateElevatorState(numFloors),
+		Orders:        state.CreateElevatorOrders(numFloors),
 		Floor:         1,
 		DoorTimer:     timer,
 	}

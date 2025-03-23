@@ -2,6 +2,7 @@ package elevatorStateMachine
 
 import (
 	"Driver-go/elevator-system/elevio"
+	"Driver-go/elevator-system/state"
 	"fmt"
 	"time"
 )
@@ -19,6 +20,7 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 				//Reset timer if it is turned on.
 				if obstructed {
 					elevator.setState(DoorOpen)
+					outputs.StateCh <- getCommState(elevator)
 				}
 			}
 
@@ -34,34 +36,44 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 						elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
 					}
 					elevator.setState(DoorOpen)
+					outputs.StateCh <- getCommState(elevator)
 				} else if elevator.hasCabOrderAbove(elevator.Floor) || elevator.hasHallOrderAbove(elevator.Floor) {
 					elevator.setState(Up)
+					outputs.StateCh <- getCommState(elevator)
 				} else if elevator.hasOrder(elevio.BT_HallDown, elevator.Floor) {
 					elevator.setState(DoorOpen)
+					outputs.StateCh <- getCommState(elevator)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
 				} else if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
 					elevator.setState(Down)
+					outputs.StateCh <- getCommState(elevator)
 				} else {
 					elevator.setState(Idle)
+					outputs.StateCh <- getCommState(elevator)
 				}
 			case Down:
 				if elevator.hasOrder(elevio.BT_Cab, elevator.Floor) || elevator.hasOrder(elevio.BT_HallDown, elevator.Floor) {
 					elevator.setState(DoorOpen)
+					outputs.StateCh <- getCommState(elevator)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_Cab}, outputs.OrderCompleted)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
 				} else if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
 					elevator.setState(Down)
+					outputs.StateCh <- getCommState(elevator)
 				} else if elevator.hasOrder(elevio.BT_HallUp, elevator.Floor) {
 					elevator.setState(DoorOpen)
+					outputs.StateCh <- getCommState(elevator)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
 				} else if elevator.hasCabOrderAbove(elevator.Floor) || elevator.hasHallOrderAbove(elevator.Floor) {
 					elevator.setState(Up)
+					outputs.StateCh <- getCommState(elevator)
 				} else {
 					elevator.setState(Idle)
+					outputs.StateCh <- getCommState(elevator)
 				}
 			}
 
-		case receivedState := <-inputs.StateCh:
+		case receivedState := <-inputs.OrderCh:
 			elevator.Orders = receivedState
 			for floor, floorOrder := range receivedState {
 				for btn, order := range floorOrder {
@@ -72,19 +84,25 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 			case Idle:
 				if elevator.hasOrderAtFloor(elevator.Floor) {
 					elevator.setState(DoorOpen)
+					outputs.StateCh <- getCommState(elevator)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_Cab}, outputs.OrderCompleted)
 				} else if elevator.hasCabOrderAbove(elevator.Floor) {
 					elevator.setState(Up)
+					outputs.StateCh <- getCommState(elevator)
 				} else if elevator.hasCabOrderBelow(elevator.Floor) {
 					elevator.setState(Down)
+					outputs.StateCh <- getCommState(elevator)
 				} else if elevator.hasHallOrderAbove(elevator.Floor) {
 					elevator.setState(Up)
+					outputs.StateCh <- getCommState(elevator)
 				} else if elevator.hasHallOrderBelow(elevator.Floor) {
 					elevator.setState(Down)
+					outputs.StateCh <- getCommState(elevator)
 				} else {
 					elevator.setState(Idle)
+					outputs.StateCh <- getCommState(elevator)
 				}
 			case DoorOpen:
 
@@ -124,5 +142,13 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 				}
 			}
 		}
+	}
+}
+
+func getCommState(e ElevatorState) state.ElevatorState {
+	return state.ElevatorState{
+		MachineState: state.MachineState(e.MachineState),
+		Floor:        e.Floor,
+		AlterId:      0,
 	}
 }

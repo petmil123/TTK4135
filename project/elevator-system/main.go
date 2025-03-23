@@ -32,8 +32,8 @@ func main() {
 
 	//Channels for passing orders between state machine and communication.
 	orderCompletedSelf := make(chan elevio.ButtonEvent, 4) //Added buffer to not block
-	stateCh := make(chan state.ElevatorOrders)
-
+	orderCh := make(chan state.ElevatorOrders)
+	stateCh := make(chan state.ElevatorState, 4)
 	// Keep alive channels
 
 	// Start polling
@@ -44,11 +44,12 @@ func main() {
 	go elevatorStateMachine.RunElevator(elevatorStateMachine.StateMachineInputs{
 		Obstruction:  drv_obstr,
 		FloorArrival: drv_floors,
-		StateCh:      stateCh,
+		OrderCh:      orderCh,
 	}, elevatorStateMachine.StateMachineOutputs{
 		OrderCompleted: orderCompletedSelf,
+		StateCh:        stateCh,
 	}, numFloors)
-	go communication.RunCommunication(id, numFloors, 20060, drv_buttons, orderCompletedSelf, stateCh)
+	go communication.RunCommunication(id, numFloors, 20060, drv_buttons, orderCompletedSelf, orderCh, stateCh)
 
 	select {}
 
