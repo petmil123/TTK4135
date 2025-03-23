@@ -12,16 +12,18 @@ type OrderStruct struct {
 }
 
 // Type for the calls of each elevator
-type ElevatorStateStruct [][]OrderStruct //Should we specify how many calls there are at each floor?
+type ElevatorOrders [][]OrderStruct //Should we specify how many calls there are at each floor?
+
+type ElevatorState 
 
 // Struct for the Worldview
 type StateStruct struct {
-	Id        string                         //id of the elevator sending
-	Elevators map[string]ElevatorStateStruct // Map of all seen elevators
+	Id     string                    //id of the elevator sending
+	Orders map[string]ElevatorOrders // Map of all seen elevators
 }
 
 // "Constructor" for ElevatorState with all orders inactive.
-func CreateElevatorState(numFloors int) ElevatorStateStruct {
+func CreateElevatorState(numFloors int) ElevatorOrders {
 
 	calls := make([][]OrderStruct, numFloors)
 	for i := 0; i < numFloors; i++ {
@@ -41,17 +43,17 @@ func CreateElevatorState(numFloors int) ElevatorStateStruct {
 
 // Initialize global worldview
 func CreateStateStruct(id string, numFloors int) StateStruct {
-	elevators := make(map[string]ElevatorStateStruct)
+	elevators := make(map[string]ElevatorOrders)
 	elevators[id] = CreateElevatorState(numFloors)
 
 	return StateStruct{
-		Id:        id,
-		Elevators: elevators,
+		Id:     id,
+		Orders: elevators,
 	}
 }
 
 // Compares all orders for a single elevator and updates if there are more recent edits.
-func (own *ElevatorStateStruct) compareIncoming(incoming ElevatorStateStruct) {
+func (own *ElevatorOrders) compareIncoming(incoming ElevatorOrders) {
 	for i, incomingFloors := range incoming {
 		for j, incomingOrder := range incomingFloors {
 			if incomingOrder.AlterId > (*own)[i][j].AlterId {
@@ -62,7 +64,7 @@ func (own *ElevatorStateStruct) compareIncoming(incoming ElevatorStateStruct) {
 }
 
 // Compares hall calls and updates for more recent edits.
-func (own *ElevatorStateStruct) compareIncomingHall(incoming ElevatorStateStruct) {
+func (own *ElevatorOrders) compareIncomingHall(incoming ElevatorOrders) {
 	for i, incomingFloors := range incoming {
 		for j := 0; j < 2; j++ {
 			if incomingFloors[j].AlterId > (*own)[i][j].AlterId {
@@ -76,27 +78,29 @@ func (own *ElevatorStateStruct) compareIncomingHall(incoming ElevatorStateStruct
 func (own *StateStruct) CompareIncoming(incoming StateStruct) {
 
 	//For each elevator incoming knows about, update old info and add potential not known about elevators
-	for key, incoming_val := range incoming.Elevators {
-		own_val, exists := own.Elevators[key]
+	for key, incoming_val := range incoming.Orders {
+		own_val, exists := own.Orders[key]
 		if exists {
 			own_val.compareIncoming(incoming_val)
-			own.Elevators[key] = own_val
+			own.Orders[key] = own_val
 		} else {
 			//Add it to your state without comparing
-			own.Elevators[key] = incoming_val
+			own.Orders[key] = incoming_val
 		}
 	}
 
 	//Also, update hall calls so that new hall calls from incoming are propagated to ourselves
-	own_val, exists := own.Elevators[own.Id] //Does not work without this check
+	//TODO: Make it so that if the elevator is idle or something like that, the order is not sent to the rest of the elevators.
+	//Problem then is if there is a fault, who takes it? Is it a mess to reassign?
+	own_val, exists := own.Orders[own.Id] //Does not work without this check
 	if exists {
-		own_val.compareIncomingHall(incoming.Elevators[incoming.Id])
-		own.Elevators[own.Id] = own_val
+		own_val.compareIncomingHall(incoming.Orders[incoming.Id])
+		own.Orders[own.Id] = own_val
 	}
 }
 
 // Compares single order sent and updates if newer, for message passing.
-func (own *ElevatorStateStruct) CompareIncomingSingle(incoming OrderStruct) {
+func (own *ElevatorOrders) CompareIncomingSingle(incoming OrderStruct) {
 	btn := incoming.Order
 	if (*own)[btn.Floor][btn.Button].AlterId <= incoming.AlterId {
 		(*own)[btn.Floor][btn.Button] = incoming
@@ -104,7 +108,7 @@ func (own *ElevatorStateStruct) CompareIncomingSingle(incoming OrderStruct) {
 }
 
 // This is the function for button presses and clearing orders.
-func (elev *ElevatorStateStruct) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
+func (elev *ElevatorOrders) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 	if (*elev)[btn.Floor][btn.Button].Active != val {
 		(*elev)[btn.Floor][btn.Button].Active = val
 		(*elev)[btn.Floor][btn.Button].AlterId++
@@ -113,10 +117,10 @@ func (elev *ElevatorStateStruct) SetButtonOrder(btn elevio.ButtonEvent, val bool
 
 // Sets an order at itself in the worldview state.
 func (s *StateStruct) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
-	elevator, exists := s.Elevators[s.Id]
+	elevator, exists := s.Orders[s.Id]
 	if exists {
 		elevator.SetButtonOrder(btn, val)
-		s.Elevators[s.Id] = elevator
+		s.Orders[s.Id] = elevator
 	} else {
 		panic("Elevator state does not know about itself!")
 	}
@@ -128,11 +132,11 @@ func (s *StateStruct) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 // Not 100% sure this is the right way to do it, some issues might occur
 func (s *StateStruct) SendNewOrders(peerList []string,
 	newOrderCh chan<- OrderStruct, completedOrderCh chan<- OrderStruct) {
-	for floor, floorCalls := range s.Elevators[s.Id] {
+	for floor, floorCalls := range s.Orders[s.Id] {
 		for i, call := range floorCalls {
 			allEqual := true
 			for _, p := range peerList {
-				if s.Elevators[p][floor][i].Active != call.Active {
+				if s.Orders[p][floor][i].Active != call.Active {
 					allEqual = false
 				}
 			}
@@ -148,16 +152,16 @@ func (s *StateStruct) SendNewOrders(peerList []string,
 	}
 }
 
-func (s *StateStruct) GetConfirmedOrders(peerList []string) ElevatorStateStruct {
-	self := s.Elevators[s.Id]
+func (s *StateStruct) GetConfirmedOrders(peerList []string) ElevatorOrders {
+	self := s.Orders[s.Id]
 	toReturn := CreateElevatorState(len(self))
 	for floor, floorOrders := range self {
 		for btn, order := range floorOrders {
 			minElement := order
 
 			for _, peer := range peerList {
-				if s.Elevators[peer][floor][btn].AlterId > minElement.AlterId {
-					minElement = s.Elevators[peer][floor][btn]
+				if s.Orders[peer][floor][btn].AlterId > minElement.AlterId {
+					minElement = s.Orders[peer][floor][btn]
 				}
 			}
 			toReturn[floor][btn] = minElement

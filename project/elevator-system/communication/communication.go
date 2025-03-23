@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.ButtonEvent, orderComplete chan elevio.ButtonEvent, elevatorStateCh chan state.ElevatorStateStruct) {
+func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.ButtonEvent, orderComplete chan elevio.ButtonEvent, elevatorStateCh chan state.ElevatorOrders) {
 
 	// Initialize state for ourselves
 	orders := state.CreateStateStruct(id, numFloors)

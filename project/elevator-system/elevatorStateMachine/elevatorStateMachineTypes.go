@@ -12,7 +12,7 @@ type StateMachineInputs struct {
 	Obstruction  <-chan bool // Obstruction button toggled
 	FloorArrival <-chan int  // Arrived at floor n
 	//Communication
-	StateCh <-chan state.ElevatorStateStruct //A new order is added to the orders
+	StateCh <-chan state.ElevatorOrders //A new order is added to the orders
 	//Internal
 }
 
@@ -30,13 +30,13 @@ const (
 )
 
 type ElevatorState struct {
-	MachineState  MachineState              //Which state the FSM is in
-	Obstructed    bool                      //Is the machine obstructed?
-	PrevDirection elevio.MotorDirection     //Previous *moving* direction for choice of direction
-	NextDirection MachineState              //The direction in which we have cleared a hall order
-	Orders        state.ElevatorStateStruct //Orders
-	Floor         int                       //Which floor we previously were at.
-	DoorTimer     *time.Timer               //Timer for the door
+	MachineState  MachineState          //Which state the FSM is in
+	Obstructed    bool                  //Is the machine obstructed?
+	PrevDirection elevio.MotorDirection //Previous *moving* direction for choice of direction
+	NextDirection MachineState          //The direction in which we have cleared a hall order
+	Orders        state.ElevatorOrders  //Orders
+	Floor         int                   //Which floor we previously were at.
+	DoorTimer     *time.Timer           //Timer for the door
 }
 
 // Initialize the state of the elevator
