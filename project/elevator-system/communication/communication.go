@@ -7,7 +7,6 @@ import (
 	"Driver-go/elevator-system/state"
 	"Network-go/network/bcast"
 	"Network-go/network/peers"
-	"fmt"
 	"time"
 )
 
@@ -35,13 +34,12 @@ func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.B
 
 	for {
 		select {
-		case <-time.After(5000 * time.Millisecond):
+		case <-time.After(50 * time.Millisecond):
 			stateTx <- orders
-			fmt.Println(orders)
 
 		case receivedState := <-stateRx:
 			orders.CompareIncoming(receivedState)
-			elevatorOrderCh <- assignerInterface.AssignHallRequests(orders.GetConfirmedOrders(activePeers), activePeers)
+			elevatorOrderCh <- assignerInterface.AssignHallRequests(orders, activePeers)
 
 		case peerUpdate := <-peerUpdateCh:
 			activePeers = peerUpdate.Peers

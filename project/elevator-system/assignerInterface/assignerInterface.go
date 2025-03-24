@@ -91,7 +91,7 @@ func getHRAInput(worldview state.StateStruct, peerList []string) HRAInput {
 }
 
 func getOrdersFromHRAOutput(worldview state.StateStruct, output map[string][][2]bool, id string) state.ElevatorOrders {
-	orders := state.CreateElevatorOrders(len(output))
+	orders := state.CreateElevatorOrders(len(output[id]))
 	for i, order := range output[id] {
 		orders[i][0].Active = order[0]
 		orders[i][1].Active = order[1]
