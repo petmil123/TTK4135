@@ -11,4 +11,8 @@ Restrukturer hele driten så det er litt mer logisk, og litt mer code quality
 LITE VIKTIG (om tid):
 Docstring på alle funksjoner
 Gå gjennom all kode og kommenter det som er rart
+Rydde opp i prosjektstrukturen (go.mod fil osv. osv.)
+elevatorOrderCh i communication bør renames
+
+SVÆRT LITE VIKTIG:
 Skrive tester

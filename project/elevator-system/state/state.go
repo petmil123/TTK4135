@@ -212,20 +212,31 @@ func (s *StateStruct) SendNewOrders(peerList []string,
 }
 
 // Gets the orders that all peers agree on.
-func (s *StateStruct) GetConfirmedOrders(peerList []string) ElevatorOrders {
-	self := s.Orders[s.Id]
-	toReturn := CreateElevatorOrders(len(self))
-	for floor, floorOrders := range self {
-		for btn, order := range floorOrders {
-			minElement := order
-
-			for _, peer := range peerList {
-				if s.Orders[peer][floor][btn].AlterId > minElement.AlterId {
-					minElement = s.Orders[peer][floor][btn]
+func (s *StateStruct) GetConfirmedOrders() ElevatorOrders {
+	ownOrders := s.Orders[s.Id]
+	toReturn := CreateElevatorOrders(len(ownOrders)) //ensures correct dimensions
+	for floor, floorOrders := range ownOrders {
+		for btn, orders := range floorOrders { // For each order
+			minId := orders
+			for _, peerOrders := range s.Orders { // For each peer
+				if peerOrders[floor][btn].AlterId < minId.AlterId {
+					minId = peerOrders[floor][btn]
 				}
 			}
-			toReturn[floor][btn] = minElement
+			toReturn[floor][btn] = minId
 		}
+	}
+	return toReturn
+}
+
+func (s *StateStruct) GetActivePeerWorldview(peerList []string) StateStruct {
+	toReturn := StateStruct{
+		Id: s.Id,
+	}
+
+	for _, p := range peerList {
+		toReturn.ElevatorStates[p] = s.ElevatorStates[p]
+		toReturn.Orders[p] = s.Orders[p]
 	}
 	return toReturn
 }

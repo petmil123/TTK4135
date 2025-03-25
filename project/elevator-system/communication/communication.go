@@ -2,7 +2,6 @@
 package communication
 
 import (
-	"Driver-go/elevator-system/assignerInterface"
 	"Driver-go/elevator-system/elevio"
 	"Driver-go/elevator-system/state"
 	"Network-go/network/bcast"
@@ -10,7 +9,7 @@ import (
 	"time"
 )
 
-func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.ButtonEvent, orderComplete chan elevio.ButtonEvent, elevatorOrderCh chan state.ElevatorOrders, elevatorStateCh chan state.ElevatorState) {
+func RunCommunication(id string, numFloors int, port int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, elevatorOrderCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState) {
 
 	// Initialize state for ourselves
 	orders := state.CreateStateStruct(id, numFloors)
@@ -39,17 +38,17 @@ func RunCommunication(id string, numFloors int, port int, btnEvent chan elevio.B
 
 		case receivedState := <-stateRx:
 			orders.CompareIncoming(receivedState)
-			elevatorOrderCh <- assignerInterface.AssignHallRequests(orders, activePeers)
+			elevatorOrderCh <- orders.GetActivePeerWorldview(activePeers)
 
 		case peerUpdate := <-peerUpdateCh:
 			activePeers = peerUpdate.Peers
 
 		case buttonEvent := <-btnEvent:
 			orders.SetButtonOrder(buttonEvent, true)
-			elevatorOrderCh <- orders.GetConfirmedOrders(activePeers)
+			elevatorOrderCh <- orders.GetActivePeerWorldview(activePeers)
 		case completedOrder := <-orderComplete:
 			orders.SetButtonOrder(completedOrder, false)
-			elevatorOrderCh <- orders.GetConfirmedOrders(activePeers)
+			elevatorOrderCh <- orders.GetActivePeerWorldview(activePeers)
 		case elevatorState := <-elevatorStateCh:
 			orders.SetElevatorState(elevatorState)
 		}

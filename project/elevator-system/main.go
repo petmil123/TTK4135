@@ -32,7 +32,7 @@ func main() {
 
 	//Channels for passing orders between state machine and communication.
 	orderCompletedSelf := make(chan elevio.ButtonEvent, 4) //Added buffer to not block
-	orderCh := make(chan state.ElevatorOrders)
+	orderCh := make(chan state.StateStruct)
 	stateCh := make(chan state.ElevatorState, 4)
 	// Keep alive channels
 

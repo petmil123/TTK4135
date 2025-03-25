@@ -1,7 +1,7 @@
 // // Interface for using the hall request assigner,
 // // heavily inspired by the code here:
 // // https://github.com/TTK4145/Project-resources/blob/master/cost_fns/usage_examples/example.go
-package assignerInterface
+package assigner
 
 import (
 	"Driver-go/elevator-system/state"
@@ -23,7 +23,8 @@ type HRAInput struct {
 	States       map[string]HRAElevState `json:"states"`
 }
 
-func AssignHallRequests(worldview state.StateStruct, peerList []string) state.ElevatorOrders {
+// Runs the hall request assigner and 
+func AssignHallRequests(worldview state.StateStruct) state.ElevatorOrders {
 	executable := ""
 	switch runtime.GOOS {
 	case "linux":
@@ -33,7 +34,7 @@ func AssignHallRequests(worldview state.StateStruct, peerList []string) state.El
 	default:
 		panic("OS not supported")
 	}
-	jsonInput, err := json.Marshal(getHRAInput(worldview, peerList))
+	jsonInput, err := json.Marshal(getHRAInput(worldview))
 	if err != nil {
 		fmt.Println("json.marshal error: ", err)
 		return nil
@@ -52,21 +53,26 @@ func AssignHallRequests(worldview state.StateStruct, peerList []string) state.El
 		fmt.Println("json.Unmarshal error: ", err)
 		return nil
 	}
-	return getOrdersFromHRAOutput(worldview, *output, peerList[0])
+	return getOrdersFromHRAOutput(worldview, *output)
 }
 
-func getHRAInput(worldview state.StateStruct, peerList []string) HRAInput {
+// Takes the worldview of the known peers, and returns the data
+// in the format that is necessary for the hall request assigner.
+func getHRAInput(worldview state.StateStruct) HRAInput {
+	// Get the confirmed hall requests. These are common for every elevator
 	hraInput := HRAInput{}
-	orders := worldview.GetConfirmedOrders(peerList)
+	orders := worldview.GetConfirmedOrders()
 	hallRequests := make([][2]bool, len(orders))
 	for i, order := range orders {
 		hallRequests[i] = [2]bool{order[0].Active, order[1].Active}
 	}
 	hraInput.HallRequests = hallRequests
+
+	//Get elevator states and cab requests for each elevator.
 	hraInput.States = make(map[string]HRAElevState)
-	for _, id := range peerList {
+	for key, elevator := range worldview.ElevatorStates {
 		hraState := HRAElevState{}
-		switch worldview.ElevatorStates[id].MachineState {
+		switch elevator.MachineState {
 		case state.Idle:
 			hraState.Behavior = "idle"
 			hraState.Direction = "stop"
@@ -80,17 +86,19 @@ func getHRAInput(worldview state.StateStruct, peerList []string) HRAInput {
 			hraState.Behavior = "doorOpen"
 			hraState.Direction = "stop"
 		}
-		hraState.Floor = worldview.ElevatorStates[id].Floor
-		hraState.CabRequests = make([]bool, len(worldview.Orders[id]))
-		for i, order := range worldview.Orders[id] {
+		hraState.Floor = elevator.Floor
+		hraState.CabRequests = make([]bool, len(worldview.Orders[key]))
+		for i, order := range worldview.Orders[key] {
 			hraState.CabRequests[i] = order[2].Active
 		}
-		hraInput.States[id] = hraState
+		hraInput.States[key] = hraState
 	}
 	return hraInput
 }
 
-func getOrdersFromHRAOutput(worldview state.StateStruct, output map[string][][2]bool, id string) state.ElevatorOrders {
+// Takes the HRA output and returns the orders for the elevator that runs the assigner.
+func getOrdersFromHRAOutput(worldview state.StateStruct, output map[string][][2]bool) state.ElevatorOrders {
+	id := worldview.Id
 	orders := state.CreateElevatorOrders(len(output[id]))
 	for i, order := range output[id] {
 		orders[i][0].Active = order[0]
