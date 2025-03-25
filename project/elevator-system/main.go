@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Driver-go/elevator-system/assigner"
 	"Driver-go/elevator-system/communication"
 	"Driver-go/elevator-system/elevatorStateMachine"
 	"Driver-go/elevator-system/elevio"
@@ -32,9 +33,9 @@ func main() {
 
 	//Channels for passing orders between state machine and communication.
 	orderCompletedSelf := make(chan elevio.ButtonEvent, 4) //Added buffer to not block
-	orderCh := make(chan state.StateStruct)
+	orderCh := make(chan state.ElevatorOrders, 4)
 	stateCh := make(chan state.ElevatorState, 4)
-	// Keep alive channels
+	worldviewCh := make(chan state.StateStruct, 4)
 
 	// Start polling
 	go elevio.PollButtons(drv_buttons)
@@ -49,7 +50,8 @@ func main() {
 		OrderCompleted: orderCompletedSelf,
 		StateCh:        stateCh,
 	}, numFloors)
-	go communication.RunCommunication(id, numFloors, 20060, drv_buttons, orderCompletedSelf, orderCh, stateCh)
+	go communication.RunCommunication(id, numFloors, 20060, drv_buttons, orderCompletedSelf, worldviewCh, stateCh)
+	go assigner.RunAssigner(worldviewCh, orderCh, numFloors)
 
 	select {}
 

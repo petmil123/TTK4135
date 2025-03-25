@@ -75,11 +75,6 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 
 		case receivedState := <-inputs.OrderCh:
 			elevator.Orders = receivedState
-			for floor, floorOrder := range receivedState {
-				for btn, order := range floorOrder {
-					elevio.SetButtonLamp(elevio.ButtonType(btn), floor, order.Active)
-				}
-			}
 			switch elevator.MachineState {
 			case Idle:
 				if elevator.hasOrderAtFloor(elevator.Floor) {
@@ -99,9 +94,6 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 					outputs.StateCh <- getCommState(elevator)
 				} else if elevator.hasHallOrderBelow(elevator.Floor) {
 					elevator.setState(Down)
-					outputs.StateCh <- getCommState(elevator)
-				} else {
-					elevator.setState(Idle)
 					outputs.StateCh <- getCommState(elevator)
 				}
 			case DoorOpen:

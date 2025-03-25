@@ -2,6 +2,7 @@ VELDIG VIKTIG (må gjøres):
 Få systemet til å funke
 Cyclic counter
 Teste med packetloss
+Få alle command line argumenter inn (inkluderer ip)
 
 
 GANSKE VIKTIG (bør gjøres):
@@ -16,3 +17,6 @@ elevatorOrderCh i communication bør renames
 
 SVÆRT LITE VIKTIG:
 Skrive tester
+
+MÅ TESTES:
+Teste å initialisere i alle mulige posisjoner (mellom og på etasje)

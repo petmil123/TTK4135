@@ -2,6 +2,7 @@ package state
 
 import (
 	"Driver-go/elevator-system/elevio"
+	"fmt"
 )
 
 // Contains the status of a single order
@@ -60,6 +61,7 @@ func CreateElevatorState() ElevatorState {
 	return ElevatorState{
 		MachineState: Idle,
 		Floor:        0,
+		AlterId:      0,
 	}
 }
 
@@ -143,12 +145,12 @@ func (own *StateStruct) CompareIncoming(incoming StateStruct) {
 }
 
 // Compares single order sent and updates if newer, for message passing.
-func (own *ElevatorOrders) CompareIncomingSingle(incoming OrderStruct) {
-	btn := incoming.Order
-	if (*own)[btn.Floor][btn.Button].AlterId <= incoming.AlterId {
-		(*own)[btn.Floor][btn.Button] = incoming
-	}
-}
+// func (own *ElevatorOrders) CompareIncomingSingle(incoming OrderStruct) {
+// 	btn := incoming.Order
+// 	if (*own)[btn.Floor][btn.Button].AlterId <= incoming.AlterId {
+// 		(*own)[btn.Floor][btn.Button] = incoming
+// 	}
+// }
 
 // This is the function for button presses and clearing orders.
 func (elev *ElevatorOrders) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
@@ -212,9 +214,14 @@ func (s *StateStruct) SendNewOrders(peerList []string,
 }
 
 // Gets the orders that all peers agree on.
-func (s *StateStruct) GetConfirmedOrders() ElevatorOrders {
+func (s *StateStruct) GetConfirmedOrders(numFloors int) ElevatorOrders {
 	ownOrders := s.Orders[s.Id]
-	toReturn := CreateElevatorOrders(len(ownOrders)) //ensures correct dimensions
+	toReturn := CreateElevatorOrders(numFloors) //ensures correct dimensions
+	//TODO: Finn bedre ut av dette
+	if len(s.Orders) == 0 {
+		fmt.Println("Nå var du heldig")
+		return toReturn
+	}
 	for floor, floorOrders := range ownOrders {
 		for btn, orders := range floorOrders { // For each order
 			minId := orders
@@ -231,7 +238,9 @@ func (s *StateStruct) GetConfirmedOrders() ElevatorOrders {
 
 func (s *StateStruct) GetActivePeerWorldview(peerList []string) StateStruct {
 	toReturn := StateStruct{
-		Id: s.Id,
+		Id:             s.Id,
+		Orders:         make(map[string]ElevatorOrders),
+		ElevatorStates: make(map[string]ElevatorState),
 	}
 
 	for _, p := range peerList {
@@ -239,4 +248,21 @@ func (s *StateStruct) GetActivePeerWorldview(peerList []string) StateStruct {
 		toReturn.Orders[p] = s.Orders[p]
 	}
 	return toReturn
+}
+
+func (s *StateStruct) Prettyprint() {
+	fmt.Println("Elevator id: ", s.Id)
+	for key, elevator := range s.ElevatorStates {
+		fmt.Println("Machine state: ", elevator.MachineState)
+		fmt.Println("Floor: ", elevator.Floor)
+		fmt.Println("Alter id: ", elevator.AlterId)
+		fmt.Println("Orders: ")
+		for floor, floorOrders := range s.Orders[key] {
+			fmt.Println("Floor ", floor, ": hall down: ", floorOrders[0].Active, "(alter )", floorOrders[0].AlterId,
+				": hall up: ", floorOrders[1].Active, "(alter )", floorOrders[1].AlterId,
+				": cab: ", floorOrders[2].Active, "(alter )", floorOrders[2].AlterId)
+		}
+
+	}
+
 }

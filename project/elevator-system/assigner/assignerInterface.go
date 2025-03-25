@@ -23,8 +23,8 @@ type HRAInput struct {
 	States       map[string]HRAElevState `json:"states"`
 }
 
-// Runs the hall request assigner and 
-func AssignHallRequests(worldview state.StateStruct) state.ElevatorOrders {
+// Runs the hall request assigner and
+func AssignHallRequests(worldview state.StateStruct, numFloors int) state.ElevatorOrders {
 	executable := ""
 	switch runtime.GOOS {
 	case "linux":
@@ -34,7 +34,7 @@ func AssignHallRequests(worldview state.StateStruct) state.ElevatorOrders {
 	default:
 		panic("OS not supported")
 	}
-	jsonInput, err := json.Marshal(getHRAInput(worldview))
+	jsonInput, err := json.Marshal(getHRAInput(worldview, numFloors))
 	if err != nil {
 		fmt.Println("json.marshal error: ", err)
 		return nil
@@ -44,6 +44,8 @@ func AssignHallRequests(worldview state.StateStruct) state.ElevatorOrders {
 	if err != nil {
 		fmt.Println("exec.Command error: ", err)
 		fmt.Println(string(ret))
+		fmt.Println(worldview)
+		fmt.Println(getHRAInput(worldview, numFloors))
 		return nil
 	}
 
@@ -53,15 +55,15 @@ func AssignHallRequests(worldview state.StateStruct) state.ElevatorOrders {
 		fmt.Println("json.Unmarshal error: ", err)
 		return nil
 	}
-	return getOrdersFromHRAOutput(worldview, *output)
+	return getOrdersFromHRAOutput(worldview, *output, numFloors)
 }
 
 // Takes the worldview of the known peers, and returns the data
 // in the format that is necessary for the hall request assigner.
-func getHRAInput(worldview state.StateStruct) HRAInput {
+func getHRAInput(worldview state.StateStruct, numFloors int) HRAInput {
 	// Get the confirmed hall requests. These are common for every elevator
 	hraInput := HRAInput{}
-	orders := worldview.GetConfirmedOrders()
+	orders := worldview.GetConfirmedOrders(numFloors)
 	hallRequests := make([][2]bool, len(orders))
 	for i, order := range orders {
 		hallRequests[i] = [2]bool{order[0].Active, order[1].Active}
@@ -97,9 +99,9 @@ func getHRAInput(worldview state.StateStruct) HRAInput {
 }
 
 // Takes the HRA output and returns the orders for the elevator that runs the assigner.
-func getOrdersFromHRAOutput(worldview state.StateStruct, output map[string][][2]bool) state.ElevatorOrders {
+func getOrdersFromHRAOutput(worldview state.StateStruct, output map[string][][2]bool, numFloors int) state.ElevatorOrders {
 	id := worldview.Id
-	orders := state.CreateElevatorOrders(len(output[id]))
+	orders := state.CreateElevatorOrders(numFloors)
 	for i, order := range output[id] {
 		orders[i][0].Active = order[0]
 		orders[i][1].Active = order[1]

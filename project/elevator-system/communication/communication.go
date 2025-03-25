@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func RunCommunication(id string, numFloors int, port int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, elevatorOrderCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState) {
+func RunCommunication(id string, numFloors int, port int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, assignerCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState) {
 
 	// Initialize state for ourselves
 	orders := state.CreateStateStruct(id, numFloors)
@@ -18,10 +18,9 @@ func RunCommunication(id string, numFloors int, port int, btnEvent <-chan elevio
 
 	// Keep alive channels
 	peerTxEnable := make(chan bool)
-
-	// state channel
 	peerUpdateCh := make(chan peers.PeerUpdate)
 
+	// state channel
 	go peers.Transmitter(21060, id, peerTxEnable)
 	go peers.Receiver(21060, peerUpdateCh)
 
@@ -33,24 +32,36 @@ func RunCommunication(id string, numFloors int, port int, btnEvent <-chan elevio
 
 	for {
 		select {
+
 		case <-time.After(50 * time.Millisecond):
+			orders.Prettyprint()
 			stateTx <- orders
 
 		case receivedState := <-stateRx:
 			orders.CompareIncoming(receivedState)
-			elevatorOrderCh <- orders.GetActivePeerWorldview(activePeers)
+			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 
 		case peerUpdate := <-peerUpdateCh:
 			activePeers = peerUpdate.Peers
+			if peerUpdate.New != "" {
+				_, exists := orders.Orders[peerUpdate.New]
+				if !exists {
+					orders.Orders[peerUpdate.New] = state.CreateElevatorOrders(numFloors)
+					orders.ElevatorStates[peerUpdate.New] = state.CreateElevatorState()
+				}
+
+			}
+			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 
 		case buttonEvent := <-btnEvent:
 			orders.SetButtonOrder(buttonEvent, true)
-			elevatorOrderCh <- orders.GetActivePeerWorldview(activePeers)
+			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 		case completedOrder := <-orderComplete:
 			orders.SetButtonOrder(completedOrder, false)
-			elevatorOrderCh <- orders.GetActivePeerWorldview(activePeers)
+			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 		case elevatorState := <-elevatorStateCh:
 			orders.SetElevatorState(elevatorState)
+			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 		}
 	}
 }
