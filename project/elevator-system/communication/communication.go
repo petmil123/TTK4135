@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func RunCommunication(id string, numFloors int, port int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, assignerCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState) {
+func RunCommunication(id string, numFloors int, communicationPort int, peerPort int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, assignerCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState) {
 
 	// Initialize state for ourselves
 	orders := state.CreateStateStruct(id, numFloors)
@@ -21,14 +21,14 @@ func RunCommunication(id string, numFloors int, port int, btnEvent <-chan elevio
 	peerUpdateCh := make(chan peers.PeerUpdate)
 
 	// state channel
-	go peers.Transmitter(21060, id, peerTxEnable)
-	go peers.Receiver(21060, peerUpdateCh)
+	go peers.Transmitter(peerPort, id, peerTxEnable)
+	go peers.Receiver(peerPort, peerUpdateCh)
 
 	stateTx := make(chan state.StateStruct)
 	stateRx := make(chan state.StateStruct)
 
-	go bcast.Transmitter(port, stateTx)
-	go bcast.Receiver(port, stateRx)
+	go bcast.Transmitter(communicationPort, stateTx)
+	go bcast.Receiver(communicationPort, stateRx)
 
 	for {
 		select {

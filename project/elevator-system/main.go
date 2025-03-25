@@ -15,16 +15,23 @@ func main() {
 	var id string
 	flag.StringVar(&id, "id", "", "id of this peer")
 
-	var elevioPort string
-	flag.StringVar(&elevioPort, "port", "15657", "port of elevator server")
+	var elevatorServerPort string
+	flag.StringVar(&elevatorServerPort, "elevatorPort", "15657", "port of elevator server")
+
+	var elevatorServerIp string
+	flag.StringVar(&elevatorServerIp, "elevatorIp", "localhost", "IP address of elevator server")
+
+	var communicationPort int
+	flag.IntVar(&communicationPort, "communicationPort", 20060, "Port for main communication")
+
+	var peerPort int
+	flag.IntVar(&peerPort, "peerPort", 21060, "Port for peer keep-alive communication")
 
 	var numFloors int
 	flag.IntVar(&numFloors, "numFloors", 4, "Number of floors in elevator system")
 	flag.Parse()
 
-	ip := "localhost:"
-
-	elevio.Init(ip+elevioPort, numFloors)
+	elevio.Init(elevatorServerIp+":"+elevatorServerPort, numFloors)
 
 	// Create driver channels
 	drv_buttons := make(chan elevio.ButtonEvent)
@@ -50,7 +57,7 @@ func main() {
 		OrderCompleted: orderCompletedSelf,
 		StateCh:        stateCh,
 	}, numFloors)
-	go communication.RunCommunication(id, numFloors, 20060, drv_buttons, orderCompletedSelf, worldviewCh, stateCh)
+	go communication.RunCommunication(id, numFloors, communicationPort, peerPort, drv_buttons, orderCompletedSelf, worldviewCh, stateCh)
 	go assigner.RunAssigner(worldviewCh, orderCh, numFloors)
 
 	select {}

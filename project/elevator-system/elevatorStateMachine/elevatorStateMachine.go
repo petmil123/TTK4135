@@ -141,6 +141,5 @@ func getCommState(e ElevatorState) state.ElevatorState {
 	return state.ElevatorState{
 		MachineState: state.MachineState(e.MachineState),
 		Floor:        e.Floor,
-		AlterId:      0,
 	}
 }
