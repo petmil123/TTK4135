@@ -1,5 +1,4 @@
 VELDIG VIKTIG (må gjøres):
-Få systemet til å funke
 Cyclic counter
 Teste med packetloss
 Få alle command line argumenter inn (inkluderer ip)

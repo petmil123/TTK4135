@@ -103,7 +103,9 @@ func (own *ElevatorOrders) compareIncomingHall(incoming ElevatorOrders) {
 
 func (own *ElevatorState) compareIncoming(incoming ElevatorState) {
 	if incoming.AlterId > own.AlterId {
-		own = &incoming
+		own.MachineState = incoming.MachineState
+		own.AlterId = incoming.AlterId
+		own.Floor = incoming.Floor
 	}
 }
 

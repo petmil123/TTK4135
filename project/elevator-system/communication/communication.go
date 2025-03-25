@@ -34,7 +34,6 @@ func RunCommunication(id string, numFloors int, port int, btnEvent <-chan elevio
 		select {
 
 		case <-time.After(50 * time.Millisecond):
-			orders.Prettyprint()
 			stateTx <- orders
 
 		case receivedState := <-stateRx:
