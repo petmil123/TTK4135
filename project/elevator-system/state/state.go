@@ -9,7 +9,7 @@ import (
 type OrderStruct struct {
 	Order   elevio.ButtonEvent //Identifier
 	Active  bool               //Is the order active?
-	AlterId uint8              //Cyclic counter
+	AlterId uint64             //Cyclic counter
 }
 
 // Type for the calls of each elevator
@@ -28,7 +28,7 @@ const (
 type ElevatorState struct {
 	MachineState MachineState //Which state the FSM is in
 	Floor        int          //Which floor we previously were at.
-	AlterId      uint8        //Cyclic counter
+	AlterId      uint64       //Cyclic counter
 }
 
 // Struct for the Worldview
@@ -50,7 +50,7 @@ func CreateElevatorOrders(numFloors int) ElevatorOrders {
 				Button: elevio.ButtonType(j),
 			}
 			floorCalls[j].Active = false
-			floorCalls[j].AlterId = 0
+			floorCalls[j].AlterId = 1
 		}
 		calls[i] = floorCalls
 	}
@@ -61,7 +61,7 @@ func CreateElevatorState() ElevatorState {
 	return ElevatorState{
 		MachineState: Idle,
 		Floor:        0,
-		AlterId:      0,
+		AlterId:      1,
 	}
 }
 
@@ -83,7 +83,11 @@ func CreateStateStruct(id string, numFloors int) StateStruct {
 func (own *ElevatorOrders) compareIncoming(incoming ElevatorOrders) {
 	for i, incomingFloors := range incoming {
 		for j, incomingOrder := range incomingFloors {
-			if incomingOrder.AlterId > (*own)[i][j].AlterId {
+			if incomingOrder.AlterId == (1<<64)-1 && (*own)[i][j].AlterId == 0 {
+				continue
+			} else if incomingOrder.AlterId > (*own)[i][j].AlterId {
+				(*own)[i][j] = incomingOrder
+			} else if incomingOrder.AlterId == 0 && (*own)[i][j].AlterId == (1<<64)-1 {
 				(*own)[i][j] = incomingOrder
 			}
 		}
@@ -94,7 +98,11 @@ func (own *ElevatorOrders) compareIncoming(incoming ElevatorOrders) {
 func (own *ElevatorOrders) compareIncomingHall(incoming ElevatorOrders) {
 	for i, incomingFloors := range incoming {
 		for j := 0; j < 2; j++ {
-			if incomingFloors[j].AlterId > (*own)[i][j].AlterId {
+			if incomingFloors[j].AlterId == (1<<64)-1 && (*own)[i][j].AlterId == 0 {
+				continue
+			} else if incomingFloors[j].AlterId > (*own)[i][j].AlterId {
+				(*own)[i][j] = incomingFloors[j]
+			} else if incomingFloors[j].AlterId == 0 && (*own)[i][j].AlterId == (1<<64)-1 {
 				(*own)[i][j] = incomingFloors[j]
 			}
 		}
@@ -102,7 +110,13 @@ func (own *ElevatorOrders) compareIncomingHall(incoming ElevatorOrders) {
 }
 
 func (own *ElevatorState) compareIncoming(incoming ElevatorState) {
-	if incoming.AlterId > own.AlterId {
+	if incoming.AlterId == (1<<64)-1 && own.AlterId == 0 {
+
+	} else if incoming.AlterId > own.AlterId {
+		own.MachineState = incoming.MachineState
+		own.AlterId = incoming.AlterId
+		own.Floor = incoming.Floor
+	} else if incoming.AlterId == 0 && own.AlterId == (1<<64)-1 {
 		own.MachineState = incoming.MachineState
 		own.AlterId = incoming.AlterId
 		own.Floor = incoming.Floor
@@ -146,19 +160,15 @@ func (own *StateStruct) CompareIncoming(incoming StateStruct) {
 	}
 }
 
-// Compares single order sent and updates if newer, for message passing.
-// func (own *ElevatorOrders) CompareIncomingSingle(incoming OrderStruct) {
-// 	btn := incoming.Order
-// 	if (*own)[btn.Floor][btn.Button].AlterId <= incoming.AlterId {
-// 		(*own)[btn.Floor][btn.Button] = incoming
-// 	}
-// }
-
 // This is the function for button presses and clearing orders.
 func (elev *ElevatorOrders) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 	if (*elev)[btn.Floor][btn.Button].Active != val {
 		(*elev)[btn.Floor][btn.Button].Active = val
-		(*elev)[btn.Floor][btn.Button].AlterId++
+		if (*elev)[btn.Floor][btn.Button].AlterId == (1<<64)-1 {
+			(*elev)[btn.Floor][btn.Button].AlterId = 0
+		} else {
+			(*elev)[btn.Floor][btn.Button].AlterId++
+		}
 	}
 }
 
@@ -186,32 +196,10 @@ func (s *StateStruct) SetElevatorState(state ElevatorState) {
 func (elev *ElevatorState) setState(state ElevatorState) {
 	elev.MachineState = state.MachineState
 	elev.Floor = state.Floor
-	elev.AlterId++
-}
-
-// Check if all peers know about a hall call order, and sends a message on a
-// channel if this is the case.
-//
-// Not 100% sure this is the right way to do it, some issues might occur
-func (s *StateStruct) SendNewOrders(peerList []string,
-	newOrderCh chan<- OrderStruct, completedOrderCh chan<- OrderStruct) {
-	for floor, floorCalls := range s.Orders[s.Id] {
-		for i, call := range floorCalls {
-			allEqual := true
-			for _, p := range peerList {
-				if s.Orders[p][floor][i].Active != call.Active {
-					allEqual = false
-				}
-			}
-			if allEqual {
-				if floorCalls[i].Active {
-					newOrderCh <- floorCalls[i]
-				} else if i < 2 { // Disregard cab calls
-					completedOrderCh <- floorCalls[i]
-				}
-			}
-		}
-
+	if elev.AlterId == (1<<64)-1 {
+		elev.AlterId = 0
+	} else {
+		elev.AlterId++
 	}
 }
 
@@ -252,6 +240,7 @@ func (s *StateStruct) GetActivePeerWorldview(peerList []string) StateStruct {
 	return toReturn
 }
 
+// Debug utility:)
 func (s *StateStruct) Prettyprint() {
 	fmt.Println("Elevator id: ", s.Id)
 	for key, elevator := range s.ElevatorStates {
