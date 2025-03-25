@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const _pollRate = 20 * time.Millisecond
+const _pollRate = 10 * time.Millisecond
 
 var _initialized bool = false
 var _numFloors int = 4
