@@ -1,0 +1,14 @@
+VELDIG VIKTIG (må gjøres):
+Få systemet til å funke
+Cyclic counter
+Teste med packetloss
+
+
+GANSKE VIKTIG (bør gjøres):
+Restrukturer hele driten så det er litt mer logisk, og litt mer code quality
+
+
+LITE VIKTIG (om tid):
+Docstring på alle funksjoner
+Gå gjennom all kode og kommenter det som er rart
+Skrive tester
