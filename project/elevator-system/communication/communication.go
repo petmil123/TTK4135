@@ -33,7 +33,7 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 	for {
 		select {
 
-		case <-time.After(50 * time.Millisecond):
+		case <-time.After(10 * time.Millisecond):
 			stateTx <- orders
 
 		case receivedState := <-stateRx:

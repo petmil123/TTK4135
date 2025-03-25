@@ -1,10 +1,9 @@
 VELDIG VIKTIG (må gjøres):
-Teste med packetloss
-Få alle command line argumenter inn (inkluderer ip)
 
 
 GANSKE VIKTIG (bør gjøres):
 Restrukturer hele driten så det er litt mer logisk, og litt mer code quality
+Se på om vi har mulighet til å skrive/lese til samme objekt
 
 
 LITE VIKTIG (om tid):
@@ -18,3 +17,4 @@ Skrive tester
 
 MÅ TESTES:
 Teste å initialisere i alle mulige posisjoner (mellom og på etasje)
+Hva skjer om vi tar spenningen til motoren?
