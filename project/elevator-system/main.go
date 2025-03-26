@@ -13,7 +13,7 @@ func main() {
 
 	// Get id from command line argument
 	var id string
-	flag.StringVar(&id, "id", "", "id of this peer")
+	flag.StringVar(&id, "id", "1", "id of this peer")
 
 	var elevatorServerPort string
 	flag.StringVar(&elevatorServerPort, "elevatorPort", "15657", "port of elevator server")
@@ -42,7 +42,7 @@ func main() {
 	orderCompletedSelf := make(chan elevio.ButtonEvent, 4) //Added buffer to not block
 	orderCh := make(chan state.ElevatorOrders, 4)
 	stateCh := make(chan state.ElevatorState, 4)
-	worldviewCh := make(chan state.StateStruct, 4)
+	worldviewCh := make(chan state.StateStruct, 64)
 
 	// Start polling
 	go elevio.PollButtons(drv_buttons)

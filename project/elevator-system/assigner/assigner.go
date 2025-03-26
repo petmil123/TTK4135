@@ -3,13 +3,12 @@ package assigner
 import (
 	"Driver-go/elevator-system/elevio"
 	"Driver-go/elevator-system/state"
-	"fmt"
 )
 
 func RunAssigner(worldviewCh <-chan state.StateStruct, ordersCh chan<- state.ElevatorOrders, numFloors int) {
 	for {
-
 		worldview := <-worldviewCh
+
 		for _, FloorOrders := range worldview.Orders[worldview.Id] {
 			for _, order := range FloorOrders {
 				elevio.SetButtonLamp(order.Order.Button, order.Order.Floor, order.Active)
@@ -17,9 +16,8 @@ func RunAssigner(worldviewCh <-chan state.StateStruct, ordersCh chan<- state.Ele
 		}
 		requests := AssignHallRequests(worldview, numFloors)
 		if requests != nil {
-			ordersCh <- AssignHallRequests(worldview, numFloors)
+			ordersCh <- requests
 		} else {
-			fmt.Println("Skuff")
 		}
 	}
 }

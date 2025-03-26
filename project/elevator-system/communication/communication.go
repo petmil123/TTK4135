@@ -7,6 +7,7 @@ import (
 	"Network-go/network/bcast"
 	"Network-go/network/peers"
 	"time"
+	"fmt"
 )
 
 func RunCommunication(id string, numFloors int, communicationPort int, peerPort int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, assignerCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState) {
@@ -38,7 +39,10 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 
 		case receivedState := <-stateRx:
 			orders.CompareIncoming(receivedState)
+			fmt.Println("Halla receivedstate")
 			assignerCh <- orders.GetActivePeerWorldview(activePeers)
+			fmt.Println("hade receivedstate")
+
 
 		case peerUpdate := <-peerUpdateCh:
 			activePeers = peerUpdate.Peers
