@@ -7,7 +7,7 @@ import (
 
 func main() {
 	// Write
-	conn, err := net.Dial("udp", "255.255.255.255:20018")
+	conn, err := net.Dial("udp", "255.255.255.255:30000")
 	if err != nil {
 		fmt.Println("error in dial")
 	}
@@ -15,7 +15,7 @@ func main() {
 	conn.Write([]byte("Hello from group 18!"))
 
 	// Read
-	pc, err := net.ListenPacket("udp", ":20018")
+	pc, err := net.ListenPacket("udp", ":30000")
 	if err != nil {
 		fmt.Println("Error in listen!")
 	}
