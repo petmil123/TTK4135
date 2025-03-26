@@ -43,6 +43,7 @@ func main() {
 	orderCh := make(chan state.ElevatorOrders, 4)
 	stateCh := make(chan state.ElevatorState, 4)
 	worldviewCh := make(chan state.StateStruct, 64)
+	PeerTxEnableCh := make(chan bool, 4)
 
 	// Start polling
 	go elevio.PollButtons(drv_buttons)
@@ -56,8 +57,9 @@ func main() {
 	}, elevatorStateMachine.StateMachineOutputs{
 		OrderCompleted: orderCompletedSelf,
 		StateCh:        stateCh,
+		PeerTxEnableCh: PeerTxEnableCh,
 	}, numFloors)
-	go communication.RunCommunication(id, numFloors, communicationPort, peerPort, drv_buttons, orderCompletedSelf, worldviewCh, stateCh)
+	go communication.RunCommunication(id, numFloors, communicationPort, peerPort, drv_buttons, orderCompletedSelf, worldviewCh, stateCh, PeerTxEnableCh)
 	go assigner.RunAssigner(worldviewCh, orderCh, numFloors)
 
 	select {}

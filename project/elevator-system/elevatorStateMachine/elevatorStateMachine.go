@@ -10,7 +10,10 @@ import (
 func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloors int) {
 	doorTimer := time.NewTimer(3 * time.Second)
 	doorTimer.Stop()
-	elevator := initializeElevator(numFloors, doorTimer)
+	stateErrorTimer := time.NewTimer(5 * time.Second)
+	stateErrorTimer.Stop()
+
+	elevator := initializeElevator(numFloors, doorTimer, stateErrorTimer)
 	for {
 		select {
 		case obstructed := <-inputs.Obstruction:
@@ -29,6 +32,7 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 			elevator.setFloor(arrivedFloor)
 			switch elevator.MachineState {
 			case Up:
+				outputs.PeerTxEnableCh <- true
 				if elevator.hasOrder(elevio.BT_Cab, elevator.Floor) || elevator.hasOrder(elevio.BT_HallUp, elevator.Floor) {
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_Cab}, outputs.OrderCompleted)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
@@ -52,6 +56,7 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 					outputs.StateCh <- getCommState(elevator)
 				}
 			case Down:
+				outputs.PeerTxEnableCh <- true
 				if elevator.hasOrder(elevio.BT_Cab, elevator.Floor) || elevator.hasOrder(elevio.BT_HallDown, elevator.Floor) {
 					elevator.setState(DoorOpen)
 					outputs.StateCh <- getCommState(elevator)
@@ -133,6 +138,10 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 					}
 				}
 			}
+		case <-elevator.StateErrorTimer.C:
+			fmt.Println("State error timer")
+			outputs.PeerTxEnableCh <- false
+
 		}
 	}
 }

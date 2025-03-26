@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func RunCommunication(id string, numFloors int, communicationPort int, peerPort int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, assignerCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState) {
+func RunCommunication(id string, numFloors int, communicationPort int, peerPort int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, assignerCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState, txEnableCh chan bool) {
 
 	// Initialize state for ourselves
 	orders := state.CreateStateStruct(id, numFloors)
@@ -61,6 +61,9 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 		case elevatorState := <-elevatorStateCh:
 			orders.SetElevatorState(elevatorState)
 			assignerCh <- orders.GetActivePeerWorldview(activePeers)
+
+		case val := <-txEnableCh:
+			peerTxEnable <- val
 		}
 	}
 }
