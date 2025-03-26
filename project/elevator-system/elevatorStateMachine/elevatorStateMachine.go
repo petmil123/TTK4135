@@ -7,23 +7,27 @@ import (
 	"time"
 )
 
+// The function that creates the elevator behavior
 func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloors int) {
 	doorTimer := time.NewTimer(3 * time.Second)
 	doorTimer.Stop()
+
 	elevator := initializeElevator(numFloors, doorTimer)
 	for {
 		select {
+		//Resets the timer if door is obstructed
 		case obstructed := <-inputs.Obstruction:
 			elevator.Obstructed = obstructed
 			switch elevator.MachineState {
 			case DoorOpen:
-				//Reset timer if it is turned on.
+				// but only if door is open
 				if obstructed {
 					elevator.setState(DoorOpen)
 					outputs.StateCh <- getCommState(elevator)
 				}
 			}
 
+		// procedure for elevator behavior when arriving a floor
 		case arrivedFloor := <-inputs.FloorArrival:
 			fmt.Println("arrived at floor", elevator.Floor)
 			elevator.setFloor(arrivedFloor)
@@ -73,6 +77,7 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 				}
 			}
 
+		// update the elevator order and go to next assigned order
 		case receivedState := <-inputs.OrderCh:
 			elevator.Orders = receivedState
 			switch elevator.MachineState {
@@ -100,6 +105,7 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 
 			}
 
+		// decide what to do then doorTimer runs out
 		case <-elevator.DoorTimer.C:
 			fmt.Println("Door timer")
 			if elevator.Obstructed {
@@ -137,6 +143,7 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 	}
 }
 
+// convert the elevator state to something that that can be sent on the network (??)
 func getCommState(e ElevatorState) state.ElevatorState {
 	return state.ElevatorState{
 		MachineState: state.MachineState(e.MachineState),
