@@ -11,6 +11,7 @@ Docstring på alle funksjoner
 Gå gjennom all kode og kommenter det som er rart
 Rydde opp i prosjektstrukturen (go.mod fil osv. osv.)
 elevatorOrderCh i communication bør renames
+Skal vi legge tider i timere i konstanter?
 
 SVÆRT LITE VIKTIG:
 Skrive tester

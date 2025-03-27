@@ -9,7 +9,7 @@ import (
 type OrderStruct struct {
 	Order   elevio.ButtonEvent //Identifier
 	Active  bool               //Is the order active?
-	AlterId uint64             //Cyclic counter
+	AlterId uint               //Cyclic counter
 }
 
 // Type for the calls of each elevator
@@ -28,7 +28,7 @@ const (
 type ElevatorState struct {
 	MachineState MachineState //Which state the FSM is in
 	Floor        int          //Which floor we previously were at.
-	AlterId      uint64       //Cyclic counter
+	AlterId      uint         //Cyclic counter
 }
 
 // Struct for the Worldview
@@ -83,11 +83,11 @@ func CreateStateStruct(id string, numFloors int) StateStruct {
 func (own *ElevatorOrders) compareIncoming(incoming ElevatorOrders) {
 	for i, incomingFloors := range incoming {
 		for j, incomingOrder := range incomingFloors {
-			if incomingOrder.AlterId == (1<<64)-1 && (*own)[i][j].AlterId == 0 {
+			if incomingOrder.AlterId == ^uint(0) && (*own)[i][j].AlterId == 0 {
 				continue
 			} else if incomingOrder.AlterId > (*own)[i][j].AlterId {
 				(*own)[i][j] = incomingOrder
-			} else if incomingOrder.AlterId == 0 && (*own)[i][j].AlterId == (1<<64)-1 {
+			} else if incomingOrder.AlterId == 0 && (*own)[i][j].AlterId == ^uint(0) {
 				(*own)[i][j] = incomingOrder
 			}
 		}
@@ -98,11 +98,11 @@ func (own *ElevatorOrders) compareIncoming(incoming ElevatorOrders) {
 func (own *ElevatorOrders) compareIncomingHall(incoming ElevatorOrders) {
 	for i, incomingFloors := range incoming {
 		for j := 0; j < 2; j++ {
-			if incomingFloors[j].AlterId == (1<<64)-1 && (*own)[i][j].AlterId == 0 {
+			if incomingFloors[j].AlterId == ^uint(0) && (*own)[i][j].AlterId == 0 {
 				continue
 			} else if incomingFloors[j].AlterId > (*own)[i][j].AlterId {
 				(*own)[i][j] = incomingFloors[j]
-			} else if incomingFloors[j].AlterId == 0 && (*own)[i][j].AlterId == (1<<64)-1 {
+			} else if incomingFloors[j].AlterId == 0 && (*own)[i][j].AlterId == ^uint(0) {
 				(*own)[i][j] = incomingFloors[j]
 			}
 		}
@@ -110,13 +110,13 @@ func (own *ElevatorOrders) compareIncomingHall(incoming ElevatorOrders) {
 }
 
 func (own *ElevatorState) compareIncoming(incoming ElevatorState) {
-	if incoming.AlterId == (1<<64)-1 && own.AlterId == 0 {
+	if incoming.AlterId == ^uint(0) && own.AlterId == 0 {
 
 	} else if incoming.AlterId > own.AlterId {
 		own.MachineState = incoming.MachineState
 		own.AlterId = incoming.AlterId
 		own.Floor = incoming.Floor
-	} else if incoming.AlterId == 0 && own.AlterId == (1<<64)-1 {
+	} else if incoming.AlterId == 0 && own.AlterId == ^uint(0) {
 		own.MachineState = incoming.MachineState
 		own.AlterId = incoming.AlterId
 		own.Floor = incoming.Floor
@@ -164,7 +164,7 @@ func (own *StateStruct) CompareIncoming(incoming StateStruct) {
 func (elev *ElevatorOrders) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 	if (*elev)[btn.Floor][btn.Button].Active != val {
 		(*elev)[btn.Floor][btn.Button].Active = val
-		if (*elev)[btn.Floor][btn.Button].AlterId == (1<<64)-1 {
+		if (*elev)[btn.Floor][btn.Button].AlterId == ^uint(0) {
 			(*elev)[btn.Floor][btn.Button].AlterId = 0
 		} else {
 			(*elev)[btn.Floor][btn.Button].AlterId++
@@ -196,7 +196,7 @@ func (s *StateStruct) SetElevatorState(state ElevatorState) {
 func (elev *ElevatorState) setState(state ElevatorState) {
 	elev.MachineState = state.MachineState
 	elev.Floor = state.Floor
-	if elev.AlterId == (1<<64)-1 {
+	if elev.AlterId == ^uint(0) {
 		elev.AlterId = 0
 	} else {
 		elev.AlterId++
