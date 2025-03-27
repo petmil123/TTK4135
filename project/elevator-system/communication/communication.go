@@ -6,6 +6,7 @@ import (
 	"Driver-go/elevator-system/state"
 	"Network-go/network/bcast"
 	"Network-go/network/peers"
+	"fmt"
 	"time"
 )
 
@@ -44,11 +45,14 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 			activePeers = peerUpdate.Peers
 			if peerUpdate.New != "" {
 				_, exists := orders.Orders[peerUpdate.New]
+				fmt.Println("New peer: ", peerUpdate.New)
 				if !exists {
 					orders.Orders[peerUpdate.New] = state.CreateElevatorOrders(numFloors)
 					orders.ElevatorStates[peerUpdate.New] = state.CreateElevatorState()
 				}
-
+			}
+			if len(peerUpdate.Lost != 0) {
+				fmt.Println("Lost peers: ", peerUpdate.Lost)
 			}
 			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 
