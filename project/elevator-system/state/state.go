@@ -13,8 +13,9 @@ type OrderStruct struct {
 }
 
 // Type for the calls of each elevator
-type ElevatorOrders [][]OrderStruct //Should we specify how many calls there are at each floor?
+type ElevatorOrders [][]OrderStruct // A 2D slice where rows represent floors and columns represent button types
 
+// The possible states of one elevator
 type MachineState int
 
 const (
@@ -38,7 +39,7 @@ type StateStruct struct {
 	Orders         map[string]ElevatorOrders // Map of all seen elevators
 }
 
-// "Constructor" for ElevatorState with all orders inactive.
+// "Constructor" for ElevatorState with all orders inactive. Returns the order structure for an elevator
 func CreateElevatorOrders(numFloors int) ElevatorOrders {
 
 	calls := make([][]OrderStruct, numFloors)
@@ -57,6 +58,7 @@ func CreateElevatorOrders(numFloors int) ElevatorOrders {
 	return calls
 }
 
+// Initialize the elevator state
 func CreateElevatorState() ElevatorState {
 	return ElevatorState{
 		MachineState: Idle,
@@ -109,6 +111,7 @@ func (own *ElevatorOrders) compareIncomingHall(incoming ElevatorOrders) {
 	}
 }
 
+// Compares the alterIDs and find out who has the newest one
 func (own *ElevatorState) compareIncoming(incoming ElevatorState) {
 	if incoming.AlterId == (1<<64)-1 && own.AlterId == 0 {
 
@@ -142,7 +145,7 @@ func (own *StateStruct) CompareIncoming(incoming StateStruct) {
 	//Also, update hall calls so that new hall calls from incoming are propagated to ourselves
 	//TODO: Make it so that if the elevator is idle or something like that, the order is not sent to the rest of the elevators.
 	//Problem then is if there is a fault, who takes it? Is it a mess to reassign?
-	own_val, exists := own.Orders[own.Id] //Does not work without this check
+	own_val, exists := own.Orders[own.Id] //Does not work without this check     ?????
 	if exists {
 		own_val.compareIncomingHall(incoming.Orders[incoming.Id])
 		own.Orders[own.Id] = own_val
@@ -172,7 +175,7 @@ func (elev *ElevatorOrders) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 	}
 }
 
-// Sets an order at itself in the worldview state.
+// Sets an order at itself in the worldview state. ?
 func (s *StateStruct) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 	elevator, exists := s.Orders[s.Id]
 	if exists {
@@ -183,6 +186,7 @@ func (s *StateStruct) SetButtonOrder(btn elevio.ButtonEvent, val bool) {
 	}
 }
 
+// Updates the elevator state
 func (s *StateStruct) SetElevatorState(state ElevatorState) {
 	elevator, exists := s.ElevatorStates[s.Id]
 	if exists {
@@ -193,6 +197,7 @@ func (s *StateStruct) SetElevatorState(state ElevatorState) {
 	}
 }
 
+// Function setting a new state
 func (elev *ElevatorState) setState(state ElevatorState) {
 	elev.MachineState = state.MachineState
 	elev.Floor = state.Floor
@@ -226,6 +231,7 @@ func (s *StateStruct) GetConfirmedOrders(numFloors int) ElevatorOrders {
 	return toReturn
 }
 
+// Extracts the worldview state for active peers
 func (s *StateStruct) GetActivePeerWorldview(peerList []string) StateStruct {
 	toReturn := StateStruct{
 		Id:             s.Id,
