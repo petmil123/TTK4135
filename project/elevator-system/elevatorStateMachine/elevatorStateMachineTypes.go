@@ -3,6 +3,7 @@ package elevatorStateMachine
 import (
 	"Driver-go/elevator-system/elevio"
 	"Driver-go/elevator-system/state"
+	"fmt"
 
 	"time"
 )
@@ -92,6 +93,10 @@ func (e *ElevatorState) setState(s MachineState) {
 	case DoorOpen:
 		elevio.SetMotorDirection(elevio.MD_Stop)
 		elevio.SetDoorOpenLamp(true)
+		if e.MachineState != DoorOpen {
+			fmt.Println("Resetting state timer")
+			e.StateErrorTimer.Reset(5 * time.Second)
+		}
 		// Store previous state to keep it up to date.
 		if e.MachineState == Up {
 			e.PrevDirection = elevio.MD_Up
@@ -99,7 +104,6 @@ func (e *ElevatorState) setState(s MachineState) {
 			e.PrevDirection = elevio.MD_Down
 		}
 		e.DoorTimer.Reset(3 * time.Second)
-		e.StateErrorTimer.Stop()
 		e.MachineState = DoorOpen
 	}
 }

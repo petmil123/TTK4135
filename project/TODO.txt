@@ -16,5 +16,4 @@ SVÆRT LITE VIKTIG:
 Skrive tester
 
 MÅ TESTES:
-Teste å initialisere i alle mulige posisjoner (mellom og på etasje)
-Hva skjer om vi tar spenningen til motoren?
+Teste å initialisere i alle mulige posisjoner (mellom og på etasje) (får nok kanskje ikke testet)

@@ -24,6 +24,9 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 				if obstructed {
 					elevator.setState(DoorOpen)
 					outputs.StateCh <- getCommState(elevator)
+				} else {
+					stateErrorTimer.Stop()
+					outputs.PeerTxEnableCh <- true
 				}
 			}
 
@@ -140,8 +143,17 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 			}
 		case <-elevator.StateErrorTimer.C:
 			fmt.Println("State error timer")
-			outputs.PeerTxEnableCh <- false
+			switch elevator.MachineState {
+			case Up, Down:
+				fmt.Println("State error timer")
+				outputs.PeerTxEnableCh <- false
+			case DoorOpen:
+				if elevator.Obstructed {
+					fmt.Println("State error timer")
+					outputs.PeerTxEnableCh <- false
+				}
 
+			}
 		}
 	}
 }
