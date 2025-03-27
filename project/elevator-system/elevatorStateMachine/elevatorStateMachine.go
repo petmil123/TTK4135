@@ -30,8 +30,8 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 			}
 
 		case arrivedFloor := <-inputs.FloorArrival:
-			fmt.Println("arrived at floor", elevator.Floor)
 			elevator.setFloor(arrivedFloor)
+			fmt.Println("arrived at floor", elevator.Floor)
 			switch elevator.MachineState {
 			case Up:
 				outputs.PeerTxEnableCh <- true
