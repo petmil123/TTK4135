@@ -51,7 +51,7 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 					orders.ElevatorStates[peerUpdate.New] = state.CreateElevatorState()
 				}
 			}
-			if len(peerUpdate.Lost != 0) {
+			if len(peerUpdate.Lost) != 0 {
 				fmt.Println("Lost peers: ", peerUpdate.Lost)
 			}
 			assignerCh <- orders.GetActivePeerWorldview(activePeers)
