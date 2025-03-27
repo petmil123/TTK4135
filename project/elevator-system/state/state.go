@@ -237,6 +237,10 @@ func (s *StateStruct) GetActivePeerWorldview(peerList []string) StateStruct {
 		toReturn.ElevatorStates[p] = s.ElevatorStates[p]
 		toReturn.Orders[p] = s.Orders[p]
 	}
+	//Always include own state to make lights work
+	toReturn.ElevatorStates[s.Id] = s.ElevatorStates[s.Id]
+	toReturn.Orders[s.Id] = s.Orders[s.Id]
+
 	return toReturn
 }
 
