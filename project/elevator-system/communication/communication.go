@@ -46,6 +46,7 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 			if peerUpdate.New != "" {
 				_, exists := orders.Orders[peerUpdate.New]
 				fmt.Println("New peer: ", peerUpdate.New)
+
 				if !exists {
 					orders.Orders[peerUpdate.New] = state.CreateElevatorOrders(numFloors)
 					orders.ElevatorStates[peerUpdate.New] = state.CreateElevatorState()
@@ -54,6 +55,7 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 			if len(peerUpdate.Lost) != 0 {
 				fmt.Println("Lost peers: ", peerUpdate.Lost)
 			}
+			fmt.Println("All known peers are now ", peerUpdate.Peers)
 			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 
 		case buttonEvent := <-btnEvent:
