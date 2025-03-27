@@ -4,7 +4,6 @@ import (
 	"Driver-go/elevator-system/elevio"
 	"Driver-go/elevator-system/state"
 	"fmt"
-
 	"time"
 )
 
@@ -214,4 +213,11 @@ func (e *ElevatorState) CalculateNextDir() MachineState {
 		}
 	}
 	return Idle
+}
+
+func getCommState(e ElevatorState) state.ElevatorState {
+	return state.ElevatorState{
+		MachineState: state.MachineState(e.MachineState),
+		Floor:        e.Floor,
+	}
 }

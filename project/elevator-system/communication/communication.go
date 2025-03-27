@@ -35,7 +35,20 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 		select {
 
 		case <-time.After(20 * time.Millisecond):
-			stateTx <- orders
+			// Deep copy before sending
+			toSend := state.StateStruct{
+				Id:             orders.Id,
+				ElevatorStates: make(map[string]state.ElevatorState),
+				Orders:         make(map[string]state.ElevatorOrders),
+			}
+			for key, value := range orders.ElevatorStates {
+				toSend.ElevatorStates[key] = value
+			}
+			for key, value := range orders.Orders {
+				toSend.Orders[key] = value
+			}
+
+			stateTx <- toSend
 
 		case receivedState := <-stateRx:
 			orders.CompareIncoming(receivedState)
@@ -68,6 +81,7 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 			orders.SetElevatorState(elevatorState)
 			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 
+			//TODO: Remove and use channel directly
 		case val := <-txEnableCh:
 			peerTxEnable <- val
 		}

@@ -2,7 +2,6 @@ package elevatorStateMachine
 
 import (
 	"Driver-go/elevator-system/elevio"
-	"Driver-go/elevator-system/state"
 	"fmt"
 	"time"
 )
@@ -118,14 +117,18 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 				case Up, Idle:
 					if elevator.hasCabOrderAbove(elevator.Floor) || elevator.hasHallOrderAbove(elevator.Floor) {
 						elevator.setState(Up)
+						outputs.StateCh <- getCommState(elevator)
 					} else if elevator.hasOrder(elevio.BT_HallDown, elevator.Floor) { //TODO: Må vi ha cab her?
 						elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
 						elevator.setState(DoorOpen)
+						outputs.StateCh <- getCommState(elevator)
 					} else if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
 						elevator.NextDirection = Down
 						elevator.setState(DoorOpen)
+						outputs.StateCh <- getCommState(elevator)
 					} else {
 						elevator.setState(Idle)
+						outputs.StateCh <- getCommState(elevator)
 					}
 				case Down:
 					if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
@@ -133,11 +136,14 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 					} else if elevator.hasOrder(elevio.BT_HallUp, elevator.Floor) { //TODO: Må vi ha cab her?
 						elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
 						elevator.setState(DoorOpen)
+						outputs.StateCh <- getCommState(elevator)
 					} else if elevator.hasCabOrderAbove(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
 						elevator.NextDirection = Up
 						elevator.setState(DoorOpen)
+						outputs.StateCh <- getCommState(elevator)
 					} else {
 						elevator.setState(Idle)
+						outputs.StateCh <- getCommState(elevator)
 					}
 				}
 			}
@@ -155,12 +161,5 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 
 			}
 		}
-	}
-}
-
-func getCommState(e ElevatorState) state.ElevatorState {
-	return state.ElevatorState{
-		MachineState: state.MachineState(e.MachineState),
-		Floor:        e.Floor,
 	}
 }
