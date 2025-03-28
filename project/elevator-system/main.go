@@ -47,6 +47,7 @@ func main() {
 	orderCh := make(chan state.ElevatorOrders, 4)            // Channel for getting orders assigned to an elevator ??
 	stateCh := make(chan state.ElevatorState, 4)             // Channel for sending the elevator state
 	worldviewCh := make(chan state.StateStruct, 64)          // Channel for updating all the elevator's state (worldview)
+  PeerTxEnableCh := make(chan bool, 4)                     // Channel for (de)activating outgoing keep-alive messages
 
 	// Start polling
 	go elevio.PollButtons(drv_buttonsCh)
@@ -61,12 +62,12 @@ func main() {
 	}, elevatorStateMachine.StateMachineOutputs{
 		OrderCompleted: orderCompletedSelfCh,
 		StateCh:        stateCh,
+		PeerTxEnableCh: PeerTxEnableCh,
 	}, numFloors)
 
 	// Start network communication
-	go communication.RunCommunication(id, numFloors, communicationPort, peerPort, drv_buttonsCh, orderCompletedSelfCh, worldviewCh, stateCh)
-
-	// Start the order assiger
+	go communication.RunCommunication(id, numFloors, communicationPort, peerPort, drv_buttons, orderCompletedSelf, worldviewCh, stateCh, PeerTxEnableCh)
+	// Start the order assigner
 	go assigner.RunAssigner(worldviewCh, orderCh, numFloors)
 
 	select {}

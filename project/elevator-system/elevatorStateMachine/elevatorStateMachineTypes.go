@@ -3,7 +3,6 @@ package elevatorStateMachine
 import (
 	"Driver-go/elevator-system/elevio"
 	"Driver-go/elevator-system/state"
-
 	"time"
 )
 
@@ -19,6 +18,7 @@ type StateMachineInputs struct {
 type StateMachineOutputs struct {
 	OrderCompleted chan<- elevio.ButtonEvent
 	StateCh        chan<- state.ElevatorState
+	PeerTxEnableCh chan<- bool
 }
 
 type MachineState int
@@ -31,70 +31,122 @@ const (
 )
 
 type ElevatorState struct {
-	MachineState  MachineState          //Which state the FSM is in
-	Obstructed    bool                  //Is the machine obstructed?
-	PrevDirection elevio.MotorDirection //Previous *moving* direction for choice of direction
-	NextDirection MachineState          //The direction in which we have cleared a hall order
-	Orders        state.ElevatorOrders  //Orders
-	Floor         int                   //Which floor we previously were at.
-	DoorTimer     *time.Timer           //Timer for the door
+	MachineState    MachineState          //Which state the FSM is in
+	Obstructed      bool                  //Is the machine obstructed?
+	PrevDirection   elevio.MotorDirection //Previous *moving* direction for choice of direction
+	NextDirection   MachineState          //The direction in which we have cleared a hall order
+	Orders          state.ElevatorOrders  //Orders
+	Floor           int                   //Which floor we previously were at.
+	DoorTimer       *time.Timer           //Timer for the door
+	StateErrorTimer *time.Timer           //Timer for noticing errors with the state
 }
 
 // Initialize the state of the elevator
-func initializeElevator(numFloors int, timer *time.Timer) ElevatorState {
+func initializeElevator(numFloors int, doorTimer *time.Timer, stateErrorTimer *time.Timer) ElevatorState {
 	elevio.SetMotorDirection(elevio.MD_Up)
 	return ElevatorState{
-		MachineState:  Up,
-		Obstructed:    false,
-		PrevDirection: elevio.MD_Stop,
-		NextDirection: Idle,
-		Orders:        state.CreateElevatorOrders(numFloors),
-		Floor:         1,
-		DoorTimer:     timer,
+		MachineState:    Up,
+		Obstructed:      false,
+		PrevDirection:   elevio.MD_Stop,
+		NextDirection:   Idle,
+		Orders:          state.CreateElevatorOrders(numFloors),
+		Floor:           1,
+		DoorTimer:       doorTimer,
+		StateErrorTimer: stateErrorTimer,
 	}
 }
 
 // Sets the state after a state transition, and does everything that needs to be done with the elevator IO.
-func (e *ElevatorState) setState(s MachineState) {
+func (e *ElevatorState) setState(newState MachineState) {
 	if e.MachineState == DoorOpen {
 		e.DoorTimer.Stop()
 	}
-	switch s {
+	switch newState {
 	case Idle:
-		// Stop the engine
-		elevio.SetMotorDirection(elevio.MD_Stop)
-		elevio.SetDoorOpenLamp(false)
-
-		// Store previous state to keep it up to date.
-		if e.MachineState == Up {
+		switch e.MachineState {
+		case Up:
+			elevio.SetMotorDirection(elevio.MD_Stop)
+			elevio.SetDoorOpenLamp(false)
+			e.StateErrorTimer.Stop()
 			e.PrevDirection = elevio.MD_Up
-		} else if e.MachineState == Down {
-			e.PrevDirection = elevio.MD_Down
-		}
-		e.MachineState = Idle
-	case Up:
-		elevio.SetMotorDirection(elevio.MD_Up)
-		elevio.SetDoorOpenLamp(false)
+			e.MachineState = Idle
 
-		e.MachineState = Up
+		case Down:
+			elevio.SetMotorDirection(elevio.MD_Stop)
+			elevio.SetDoorOpenLamp(false)
+			e.StateErrorTimer.Stop()
+			e.PrevDirection = elevio.MD_Down
+			e.MachineState = Idle
+		case DoorOpen:
+			elevio.SetDoorOpenLamp(false)
+			e.StateErrorTimer.Stop()
+			e.MachineState = Idle
+		case Idle:
+			// Do nothing
+		}
+
+	case Up:
+		switch e.MachineState {
+		case Up:
+			e.StateErrorTimer.Reset(5 * time.Second)
+		case Down:
+			elevio.SetMotorDirection(elevio.MD_Up)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.MachineState = Up
+		case DoorOpen:
+			elevio.SetDoorOpenLamp(false)
+			elevio.SetMotorDirection(elevio.MD_Up)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.MachineState = Up
+		case Idle:
+			elevio.SetMotorDirection(elevio.MD_Up)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.MachineState = Up
+		}
 
 	case Down:
-		elevio.SetMotorDirection(elevio.MD_Down)
-		elevio.SetDoorOpenLamp(false)
-
-		e.MachineState = Down
+		switch e.MachineState {
+		case Up:
+			elevio.SetMotorDirection(elevio.MD_Down)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.MachineState = Down
+		case Down:
+			e.StateErrorTimer.Reset(5 * time.Second)
+		case DoorOpen:
+			elevio.SetDoorOpenLamp(false)
+			elevio.SetMotorDirection(elevio.MD_Down)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.MachineState = Down
+		case Idle:
+			elevio.SetMotorDirection(elevio.MD_Down)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.MachineState = Down
+		}
 
 	case DoorOpen:
-		elevio.SetMotorDirection(elevio.MD_Stop)
-		elevio.SetDoorOpenLamp(true)
-		// Store previous state to keep it up to date.
-		if e.MachineState == Up {
+		switch e.MachineState {
+		case Up:
+			elevio.SetMotorDirection(elevio.MD_Stop)
+			elevio.SetDoorOpenLamp(true)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.DoorTimer.Reset(3 * time.Second)
 			e.PrevDirection = elevio.MD_Up
-		} else if e.MachineState == Down {
+			e.MachineState = DoorOpen
+		case Down:
+			elevio.SetMotorDirection(elevio.MD_Stop)
+			elevio.SetDoorOpenLamp(true)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.DoorTimer.Reset(3 * time.Second)
 			e.PrevDirection = elevio.MD_Down
+			e.MachineState = DoorOpen
+		case DoorOpen:
+			e.DoorTimer.Reset(3 * time.Second)
+		case Idle:
+			elevio.SetDoorOpenLamp(true)
+			e.StateErrorTimer.Reset(5 * time.Second)
+			e.DoorTimer.Reset(3 * time.Second)
+			e.MachineState = DoorOpen
 		}
-		e.DoorTimer.Reset(3 * time.Second)
-		e.MachineState = DoorOpen
 	}
 }
 
@@ -204,4 +256,11 @@ func (e *ElevatorState) CalculateNextDir() MachineState {
 		}
 	}
 	return Idle
+}
+
+func getCommState(e ElevatorState) state.ElevatorState {
+	return state.ElevatorState{
+		MachineState: state.MachineState(e.MachineState),
+		Floor:        e.Floor,
+	}
 }
