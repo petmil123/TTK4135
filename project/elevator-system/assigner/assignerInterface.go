@@ -1,6 +1,3 @@
-// // Interface for using the hall request assigner,
-// // heavily inspired by the code here:
-// // https://github.com/TTK4145/Project-resources/blob/master/cost_fns/usage_examples/example.go
 package assigner
 
 import (
@@ -23,8 +20,12 @@ type HRAInput struct {
 	States       map[string]HRAElevState `json:"states"`
 }
 
-// Runs the hall request assigner and
+// Takes in the worldview of the elevator and assigns orders using the assigner.
+//
+// *heavily* inspired by the code here:
+// https://github.com/TTK4145/Project-resources/blob/master/cost_fns/usage_examples/example.go
 func AssignHallRequests(worldview state.StateStruct, numFloors int) state.ElevatorOrders {
+	// Find out which executable to use
 	executable := ""
 	switch runtime.GOOS {
 	case "linux":
@@ -40,7 +41,7 @@ func AssignHallRequests(worldview state.StateStruct, numFloors int) state.Elevat
 		return nil
 	}
 
-	ret, err := exec.Command("../"+executable, "-i", string(jsonInput)).CombinedOutput()
+	ret, err := exec.Command("../bin/"+executable, "-i", string(jsonInput)).CombinedOutput()
 	if err != nil {
 		fmt.Println("exec.Command error: ", err)
 		fmt.Println(string(ret))
@@ -74,6 +75,7 @@ func getHRAInput(worldview state.StateStruct, numFloors int) HRAInput {
 	hraInput.States = make(map[string]HRAElevState)
 	for key, elevator := range worldview.ElevatorStates {
 		hraState := HRAElevState{}
+		//Translate from our states to idle/moving/doorOpen and direction
 		switch elevator.MachineState {
 		case state.Idle:
 			hraState.Behavior = "idle"
