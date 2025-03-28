@@ -41,7 +41,7 @@ func AssignHallRequests(worldview state.StateStruct, numFloors int) state.Elevat
 		return nil
 	}
 
-	ret, err := exec.Command("../"+executable, "-i", string(jsonInput)).CombinedOutput()
+	ret, err := exec.Command("../bin/"+executable, "-i", string(jsonInput)).CombinedOutput()
 	if err != nil {
 		fmt.Println("exec.Command error: ", err)
 		fmt.Println(string(ret))
