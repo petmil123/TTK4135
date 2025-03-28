@@ -64,6 +64,9 @@ func RunElevator(inputs StateMachineInputs, outputs StateMachineOutputs, numFloo
 					outputs.StateCh <- getCommState(elevator)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_Cab}, outputs.OrderCompleted)
 					elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallDown}, outputs.OrderCompleted)
+					if !elevator.hasOrder(elevio.BT_HallDown, elevator.Floor) && elevator.hasOrder(elevio.BT_HallUp, elevator.Floor) {
+						elevator.clearOrder(elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}, outputs.OrderCompleted)
+					}
 				} else if elevator.hasCabOrderBelow(elevator.Floor) || elevator.hasHallOrderBelow(elevator.Floor) {
 					elevator.setState(Down)
 					outputs.StateCh <- getCommState(elevator)
