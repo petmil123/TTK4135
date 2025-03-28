@@ -6,22 +6,21 @@ import (
 	"time"
 )
 
+// Data structures and methods for the FSM
+
 type StateMachineInputs struct {
-	// Physical
-	Obstruction  <-chan bool // Obstruction button toggled
-	FloorArrival <-chan int  // Arrived at floor n
-	//Communication
-	OrderCh <-chan state.ElevatorOrders //A new order is added to the orders
-	//Internal
+	ObstructionCh  <-chan bool                 // Obstruction button toggled
+	FloorArrivalCh <-chan int                  // Arrived at floor n
+	OrderCh        <-chan state.ElevatorOrders //A new order is added to the orders
 }
 
 type StateMachineOutputs struct {
-	OrderCompleted chan<- elevio.ButtonEvent
-	StateCh        chan<- state.ElevatorState
-	PeerTxEnableCh chan<- bool
+	OrderCompletedCh chan<- elevio.ButtonEvent  // Order is completed
+	StateCh          chan<- state.ElevatorState //State has changed
+	PeerTxEnableCh   chan<- bool                //(de)activate heartbeat
 }
 
-type MachineState int
+type MachineState int //enum for the state of the FSM
 
 const (
 	Idle MachineState = iota
@@ -166,6 +165,7 @@ func (e *ElevatorState) hasOrder(btn elevio.ButtonType, floor int) bool {
 	return e.Orders[floor][btn].Active
 }
 
+// Checks if we have an order at a specific floor.
 func (e *ElevatorState) hasOrderAtFloor(floor int) bool {
 	for _, order := range e.Orders[floor] {
 		if order.Active {
@@ -219,10 +219,7 @@ func (e *ElevatorState) hasHallOrderBelow(floor int) bool {
 	return false
 }
 
-// Clear orders when opening a door at the floor. We clear cab calls and hall calls
-// in the direction of travel (should be future direction)
-//
-// Also updates the nextDirection state.
+// Clears order and sets the next direction based on the order cleared.
 func (e *ElevatorState) clearOrder(btn elevio.ButtonEvent, outputCh chan<- elevio.ButtonEvent) {
 	if btn.Button == elevio.BT_HallUp {
 		e.NextDirection = Up
@@ -232,6 +229,7 @@ func (e *ElevatorState) clearOrder(btn elevio.ButtonEvent, outputCh chan<- elevi
 	outputCh <- btn
 }
 
+// Figure out what the next direction is based on the machine state.
 func (e *ElevatorState) CalculateNextDir() MachineState {
 	switch e.MachineState {
 	case Up:
@@ -262,6 +260,7 @@ func (e *ElevatorState) CalculateNextDir() MachineState {
 	return Idle
 }
 
+// Converts elevator state into the format needed for the worldview.
 func getCommState(e ElevatorState) state.ElevatorState {
 	return state.ElevatorState{
 		MachineState: state.MachineState(e.MachineState),

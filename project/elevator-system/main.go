@@ -44,7 +44,7 @@ func main() {
 
 	//Channels for passing orders between state machine and communication.
 	orderCompletedSelfCh := make(chan elevio.ButtonEvent, 4) // Channel for notifying when an order is complete
-	orderCh := make(chan state.ElevatorOrders, 4)            // Channel for getting orders assigned to an elevator ??
+	orderCh := make(chan state.ElevatorOrders, 4)            // Channel for sending orders from assigner to elevator
 	stateCh := make(chan state.ElevatorState, 4)             // Channel for sending the elevator state
 	worldviewCh := make(chan state.StateStruct, 64)          // Channel for updating all the elevator's state (worldview)
 	PeerTxEnableCh := make(chan bool, 4)                     // Channel for (de)activating outgoing keep-alive messages
@@ -56,13 +56,13 @@ func main() {
 
 	// Start Elevator State Machine
 	go elevatorStateMachine.RunElevator(elevatorStateMachine.StateMachineInputs{
-		Obstruction:  drv_obstrCh,
-		FloorArrival: drv_floorsCh,
-		OrderCh:      orderCh,
+		ObstructionCh:  drv_obstrCh,
+		FloorArrivalCh: drv_floorsCh,
+		OrderCh:        orderCh,
 	}, elevatorStateMachine.StateMachineOutputs{
-		OrderCompleted: orderCompletedSelfCh,
-		StateCh:        stateCh,
-		PeerTxEnableCh: PeerTxEnableCh,
+		OrderCompletedCh: orderCompletedSelfCh,
+		StateCh:          stateCh,
+		PeerTxEnableCh:   PeerTxEnableCh,
 	}, numFloors)
 
 	// Start network communication
