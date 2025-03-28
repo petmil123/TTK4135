@@ -140,6 +140,10 @@ func (e *ElevatorState) setState(newState MachineState) {
 			e.PrevDirection = elevio.MD_Down
 			e.MachineState = DoorOpen
 		case DoorOpen:
+			//Reset error timer if not obstructed (e.g. wrongful up call)
+			if !e.Obstructed {
+				e.StateErrorTimer.Reset(5 * time.Second)
+			}
 			e.DoorTimer.Reset(3 * time.Second)
 		case Idle:
 			elevio.SetDoorOpenLamp(true)

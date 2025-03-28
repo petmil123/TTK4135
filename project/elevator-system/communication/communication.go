@@ -17,7 +17,7 @@ import (
 // elevatorStateCh: channel for getting the elevator states (incomming)
 
 // RunCommunication handles network communication and state management from the state.go and elevio.go to the assigner.
-func RunCommunication(id string, numFloors int, communicationPort int, peerPort int, btnEvent <-chan elevio.ButtonEvent, orderComplete <-chan elevio.ButtonEvent, assignerCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState, txEnableCh chan bool) {
+func RunCommunication(id string, numFloors int, communicationPort int, peerPort int, btnEventCh <-chan elevio.ButtonEvent, orderCompleteCh <-chan elevio.ButtonEvent, assignerCh chan<- state.StateStruct, elevatorStateCh <-chan state.ElevatorState, txEnableCh chan bool) {
 
 	// Initialize state for ourselves
 	orders := state.CreateStateStruct(id, numFloors)
@@ -82,7 +82,7 @@ func RunCommunication(id string, numFloors int, communicationPort int, peerPort 
 				fmt.Println("Lost peers: ", peerUpdate.Lost)
 			}
 			fmt.Println("All known peers are now ", peerUpdate.Peers)
-      // Keep the peer list of the assigner updated
+			// Keep the peer list of the assigner updated
 			assignerCh <- orders.GetActivePeerWorldview(activePeers)
 
 		case ButtonEvent := <-btnEventCh:
